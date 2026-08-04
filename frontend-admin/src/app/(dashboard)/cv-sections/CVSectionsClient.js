@@ -83,13 +83,13 @@ export default function CVSectionsClient({
     try {
       let res;
       if (editingExpId) {
-        res = await fetch(`/api/experiences/${editingExpId}`, {
+        res = await fetch(`/admin/api/experiences/${editingExpId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch("/api/experiences", {
+        res = await fetch("/admin/api/experiences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -101,7 +101,7 @@ export default function CVSectionsClient({
         throw new Error(data.error || "Failed to save experience");
       }
 
-      const listRes = await fetch("/api/experiences");
+      const listRes = await fetch("/admin/api/experiences");
       const list = await listRes.json();
       setExps(list);
       handleResetExp();
@@ -116,7 +116,7 @@ export default function CVSectionsClient({
   const handleDeleteExp = async (id) => {
     if (!confirm("Delete this experience?")) return;
     try {
-      const res = await fetch(`/api/experiences/${id}`, { method: "DELETE" });
+      const res = await fetch(`/admin/api/experiences/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setExps((prev) => prev.filter((x) => x.id !== id));
       router.refresh();
@@ -178,13 +178,13 @@ export default function CVSectionsClient({
     try {
       let res;
       if (editingEduId) {
-        res = await fetch(`/api/education/${editingEduId}`, {
+        res = await fetch(`/admin/api/education/${editingEduId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch("/api/education", {
+        res = await fetch("/admin/api/education", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -196,7 +196,7 @@ export default function CVSectionsClient({
         throw new Error(data.error || "Failed to save education");
       }
 
-      const listRes = await fetch("/api/education");
+      const listRes = await fetch("/admin/api/education");
       const list = await listRes.json();
       setEdus(list);
       handleResetEdu();
@@ -211,7 +211,7 @@ export default function CVSectionsClient({
   const handleDeleteEdu = async (id) => {
     if (!confirm("Delete this education history?")) return;
     try {
-      const res = await fetch(`/api/education/${id}`, { method: "DELETE" });
+      const res = await fetch(`/admin/api/education/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setEdus((prev) => prev.filter((x) => x.id !== id));
       router.refresh();
@@ -265,13 +265,13 @@ export default function CVSectionsClient({
     try {
       let res;
       if (editingCertId) {
-        res = await fetch(`/api/certificates/${editingCertId}`, {
+        res = await fetch(`/admin/api/certificates/${editingCertId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch("/api/certificates", {
+        res = await fetch("/admin/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -283,7 +283,7 @@ export default function CVSectionsClient({
         throw new Error(data.error || "Failed to save certificate");
       }
 
-      const listRes = await fetch("/api/certificates");
+      const listRes = await fetch("/admin/api/certificates");
       const list = await listRes.json();
       setCerts(list);
       handleResetCert();
@@ -298,7 +298,7 @@ export default function CVSectionsClient({
   const handleDeleteCert = async (id) => {
     if (!confirm("Delete this certificate?")) return;
     try {
-      const res = await fetch(`/api/certificates/${id}`, { method: "DELETE" });
+      const res = await fetch(`/admin/api/certificates/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setCerts((prev) => prev.filter((x) => x.id !== id));
       router.refresh();

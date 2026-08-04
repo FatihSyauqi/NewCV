@@ -16,7 +16,7 @@ export async function middleware(request) {
   // If path is /login
   if (pathname === "/login") {
     if (payload) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL(request.nextUrl.basePath || "/", request.url));
     }
     return NextResponse.next();
   }
@@ -29,7 +29,7 @@ export async function middleware(request) {
         { status: 401, headers: { "Content-Type": "application/json" } }
       );
     }
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL((request.nextUrl.basePath || "") + "/login", request.url));
   }
 
   return NextResponse.next();

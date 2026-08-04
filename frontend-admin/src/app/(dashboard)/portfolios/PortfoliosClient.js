@@ -60,14 +60,14 @@ export default function PortfoliosClient({ initialPortfolios }) {
       let response;
       if (editingId) {
         // Edit Mode
-        response = await fetch(`/api/portfolios/${editingId}`, {
+        response = await fetch(`/admin/api/portfolios/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
         // Add Mode
-        response = await fetch("/api/portfolios", {
+        response = await fetch("/admin/api/portfolios", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -81,7 +81,7 @@ export default function PortfoliosClient({ initialPortfolios }) {
       }
 
       // Reload lists
-      const fetchRes = await fetch("/api/portfolios");
+      const fetchRes = await fetch("/admin/api/portfolios");
       const list = await fetchRes.json();
       setPortfolios(list);
 
@@ -98,7 +98,7 @@ export default function PortfoliosClient({ initialPortfolios }) {
     if (!confirm("Are you sure you want to delete this portfolio item?")) return;
 
     try {
-      const response = await fetch(`/api/portfolios/${id}`, {
+      const response = await fetch(`/admin/api/portfolios/${id}`, {
         method: "DELETE"
       });
 

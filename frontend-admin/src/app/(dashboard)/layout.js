@@ -13,7 +13,7 @@ export default function DashboardLayout({ children }) {
     if (!confirm("Are you sure you want to log out?")) return;
     setLoggingOut(true);
     try {
-      const res = await fetch("/api/auth/logout", { method: "POST" });
+      const res = await fetch("/admin/api/auth/logout", { method: "POST" });
       if (res.ok) {
         router.push("/login");
         router.refresh();

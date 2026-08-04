@@ -63,13 +63,13 @@ export default function BlogsClient({ initialBlogs }) {
     try {
       let response;
       if (editingId) {
-        response = await fetch(`/api/blogs/${editingId}`, {
+        response = await fetch(`/admin/api/blogs/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        response = await fetch("/api/blogs", {
+        response = await fetch("/admin/api/blogs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -83,7 +83,7 @@ export default function BlogsClient({ initialBlogs }) {
       }
 
       // Reload list
-      const fetchRes = await fetch("/api/blogs");
+      const fetchRes = await fetch("/admin/api/blogs");
       const list = await fetchRes.json();
       setBlogs(list);
 
@@ -100,7 +100,7 @@ export default function BlogsClient({ initialBlogs }) {
     if (!confirm("Are you sure you want to delete this blog post?")) return;
 
     try {
-      const response = await fetch(`/api/blogs/${id}`, {
+      const response = await fetch(`/admin/api/blogs/${id}`, {
         method: "DELETE"
       });
 

@@ -30,7 +30,7 @@ export default function ProfileForm({ initialProfile }) {
     setError("");
 
     try {
-      const response = await fetch("/api/profile", {
+      const response = await fetch("/admin/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
