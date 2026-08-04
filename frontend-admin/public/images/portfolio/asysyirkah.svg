@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+    <defs>
+      <linearGradient id="grad-ASYSYIRKAH" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#065f46;stop-opacity:1" />
+        <stop offset="100%" style="stop-color:#10b981;stop-opacity:1" />
+      </linearGradient>
+      <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+        <feDropShadow dx="0" dy="10" stdDeviation="15" flood-opacity="0.3"/>
+      </filter>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#grad-ASYSYIRKAH)" />
+    <circle cx="400" cy="220" r="100" fill="white" opacity="0.1" />
+    <g filter="url(#shadow)" transform="translate(0, 0)">
+      <text x="400" y="240" font-family="'Outfit', sans-serif" font-size="42" font-weight="bold" fill="#ffffff" text-anchor="middle">ASYSYIRKAH</text>
+      <text x="400" y="290" font-family="'Outfit', sans-serif" font-size="18" font-weight="600" fill="#fef3c7" letter-spacing="3" text-anchor="middle" opacity="0.9">SHARIAH FINANCE WEB</text>
+    </g>
+    <path d="M 150,400 L 650,400" stroke="#ffffff" stroke-width="2" stroke-linecap="round" opacity="0.2" />
+  </svg>

@@ -1,0 +1,118 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --color-sidebar: #1e1b18; /* Dark Charcoal Brown */
+  --color-primary: #b45309; /* Warm Amber */
+  --color-primary-hover: #c2410c;
+  --color-bg: #f5f4f0; /* Soft Warm Gray */
+  --color-text: #2d2a26;
+  --color-card-shadow: rgba(180, 83, 9, 0.05);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.sidebar {
+  background-color: var(--color-sidebar);
+  min-height: 100vh;
+  color: #dfdcd7;
+  transition: all 0.3s ease;
+}
+
+.sidebar .nav-link {
+  color: #c4c1bc;
+  padding: 0.8rem 1.5rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 8px;
+  margin: 0.2rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.sidebar .nav-link:hover, .sidebar .nav-link.active {
+  color: #ffffff;
+  background-color: rgba(180, 83, 9, 0.25);
+}
+
+.sidebar-header {
+  padding: 2rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 1rem;
+}
+
+.main-content {
+  padding: 2.5rem;
+  min-height: 100vh;
+}
+
+.btn-primary-warm {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  font-weight: 500;
+}
+.btn-primary-warm:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+  color: white;
+}
+
+.admin-card {
+  background: white;
+  border: 1px solid rgba(180, 83, 9, 0.05);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--color-card-shadow);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  background-color: rgba(180, 83, 9, 0.1);
+  color: var(--color-primary);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.5rem;
+}
+
+/* Custom login page styling */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #1e1b18 0%, #2d2a26 100%);
+}
+.login-card {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Table customizations */
+.table-custom th {
+  background-color: #faf9f6;
+  border-bottom: 2px solid rgba(180, 83, 9, 0.1);
+  font-weight: 600;
+  color: var(--color-text);
+  padding: 0.75rem 1rem;
+}
+.table-custom td {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+}
