@@ -12,12 +12,12 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const { school, degree, major, gpa, start_date, end_date, sort_order } = await request.json();
+    const { school, degree, major, gpa, start_date, end_date, sort_order, logo_url } = await request.json();
 
     const result = await query(
-      `INSERT INTO education (school, degree, major, gpa, start_date, end_date, sort_order) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [school, degree, major, gpa, start_date, end_date, sort_order || 0]
+      `INSERT INTO education (school, degree, major, gpa, start_date, end_date, sort_order, logo_url) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [school, degree, major, gpa, start_date, end_date, sort_order || 0, logo_url || null]
     );
 
     return NextResponse.json({ success: true, id: result.insertId, message: "Education added successfully" });

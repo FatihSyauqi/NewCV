@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 // Force dynamic rendering since we are reading from DB
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 async function getBlogPost(slug) {
   try {
@@ -15,12 +16,30 @@ async function getBlogPost(slug) {
   }
 }
 
+async function getPersonalInfo() {
+  try {
+    const rows = await query("SELECT * FROM personal_info LIMIT 1");
+    return rows[0] || null;
+  } catch (error) {
+    console.error("Error fetching personal info:", error);
+    return null;
+  }
+}
+
 export default async function BlogPostDetail({ params }) {
-  const post = await getBlogPost(params.slug);
+  const [post, personalInfo] = await Promise.all([
+    getBlogPost(params.slug),
+    getPersonalInfo()
+  ]);
 
   if (!post) {
     notFound();
   }
+
+  const authorName = personalInfo?.name || "Fatih Syauqi";
+  const authorAvatar = personalInfo?.avatar_url || "/images/avatar.jpg";
+  const authorAbout = personalInfo?.about_me || "";
+  const authorTitle = personalInfo?.title || "Software Engineer";
 
   return (
     <>
@@ -64,7 +83,7 @@ export default async function BlogPostDetail({ params }) {
               {/* Meta information */}
               <div className="d-flex align-items-center gap-3 text-muted small mb-4">
                 <div className="d-flex align-items-center">
-                  <i className="bi bi-person-circle me-1"></i> Fatih Syauqi
+                  <i className="bi bi-person-circle me-1"></i> {authorName}
                 </div>
                 <div>•</div>
                 <div className="d-flex align-items-center">
@@ -104,15 +123,15 @@ export default async function BlogPostDetail({ params }) {
               {/* Author Box */}
               <div className="card-custom p-4 bg-light border-0 d-flex flex-sm-row align-items-center gap-4">
                 <img
-                  src="/images/avatar.jpg"
-                  alt="Fatih Syauqi"
-                  className="rounded-circle border border-3 border-white shadow-sm"
+                  src={authorAvatar}
+                  alt={authorName}
+                  className="rounded-circle border border-3 border-white shadow-sm flex-shrink-0"
                   style={{ width: "80px", height: "80px", objectFit: "cover" }}
                 />
                 <div>
-                  <h4 className="h5 fw-bold mb-1 text-dark">About Fatih Syauqi</h4>
+                  <h4 className="h5 fw-bold mb-1 text-dark">About {authorName}</h4>
                   <p className="small text-muted mb-0">
-                    A Senior Software Engineer with 9 years of expertise in fullstack web and mobile application engineering. Passionate about microservices, mobile UX, and clean architecture.
+                    {authorAbout || `${authorTitle} passionate about building great software.`}
                   </p>
                 </div>
               </div>
@@ -120,7 +139,7 @@ export default async function BlogPostDetail({ params }) {
               {/* Navigation Back */}
               <div className="mt-5 text-center">
                 <Link href="/" className="btn btn-warm-outline">
-                  <i className="bi bi-arrow-left me-2"></i> Return to Portfolio & CV
+                  <i className="bi bi-arrow-left me-2"></i> Return to Portfolio &amp; CV
                 </Link>
               </div>
             </div>
@@ -131,7 +150,7 @@ export default async function BlogPostDetail({ params }) {
       {/* Footer */}
       <footer className="footer mt-5">
         <div className="container text-center text-muted-emphasis small">
-          <span>© {new Date().getFullYear()} Fatih Syauqi. All rights reserved. Created with Next.js & Bootstrap 5.</span>
+          <span>&copy; {new Date().getFullYear()} {authorName}. All rights reserved. Created with Next.js &amp; Bootstrap 5.</span>
         </div>
       </footer>
     </>

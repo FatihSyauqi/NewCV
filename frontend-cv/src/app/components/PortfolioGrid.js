@@ -124,8 +124,16 @@ export default function PortfolioGrid({ initialPortfolios }) {
             <button
               key={pageNum}
               onClick={() => setCurrentPage(pageNum)}
-              className={`btn rounded-3 fw-bold shadow-sm d-flex align-items-center justify-content-center ${currentPage === pageNum ? "btn-primary-warm text-white" : "btn-light border border-light-subtle text-muted"}`}
-              style={{ minWidth: "40px", height: "40px", transition: "all 0.2s ease", cursor: "pointer" }}
+              className={`btn rounded-3 shadow-sm d-flex align-items-center justify-content-center ${currentPage === pageNum ? "fw-bold text-white" : "btn-light border border-light-subtle text-muted fw-bold"}`}
+              style={{ 
+                minWidth: "40px", 
+                height: "40px", 
+                transition: "all 0.2s ease", 
+                cursor: "pointer",
+                backgroundColor: currentPage === pageNum ? "var(--color-accent, #0284c7)" : "",
+                borderColor: currentPage === pageNum ? "var(--color-accent, #0284c7)" : "",
+                boxShadow: currentPage === pageNum ? "0 4px 12px rgba(2, 132, 199, 0.35)" : ""
+              }}
             >
               {pageNum}
             </button>

@@ -270,9 +270,9 @@ export default function BlogsClient({ initialBlogs }) {
 
       {/* Modal Form */}
       {showForm && (
-        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1050 }}>
+        <div className="modal fade show d-block" tabIndex="-1" style={{ backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1060 }}>
           <div className="modal-dialog modal-lg modal-dialog-centered">
-            <div className="modalcontent bg-white rounded-3 shadow-lg border-0 w-100">
+            <div className="modal-content bg-white rounded-3 shadow-lg border-0 w-100">
               <div className="modal-header border-bottom border-light p-3 d-flex justify-content-between align-items-center">
                 <h5 className="modal-title fw-bold text-dark">{editingId ? "Edit Blog Post" : "Add New Blog Post"}</h5>
                 <button type="button" className="btn-close" onClick={resetForm}></button>

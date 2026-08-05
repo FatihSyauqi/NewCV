@@ -6,6 +6,7 @@ import MarqueeScroller from "./components/MarqueeScroller";
 
 // Force dynamic rendering since we are reading from DB
 export const revalidate = 0;
+export const dynamic = 'force-dynamic';
 
 async function getCVData() {
   try {
@@ -36,7 +37,7 @@ async function getCVData() {
         location: "Bogor, Jawa Barat, ID",
         linkedin: "https://www.linkedin.com/in/fatihsyauqi17",
         github: "https://github.com/fatihsyauqi17",
-        about_me: "I am from Indonesia and working as a software engineer. I have 9 years of experience in developing mobile applications and websites. I am skilled in solving problems, eager to learn new technologies, and able to work effectively in a team.",
+        about_me: "I am from Indonesia and working as a software engineer. I have 10 years of experience in developing mobile applications and websites. I am skilled in solving problems, eager to learn new technologies, and able to work effectively in a team.",
         avatar_url: "/images/avatar.jpg"
       },
       experiences: [],
@@ -94,7 +95,7 @@ export default async function Home() {
                 {personalInfo?.title}
               </h2>
               <p className="hero-lead mb-5" style={{ maxWidth: "600px" }}>
-                I am an Indonesian software engineer with 9 years of experience. I specialize in designing and engineering high-performance web applications and mobile apps, with expertise in ASP.NET, PHP Laravel, React Native, and DevOps cloud server administration.
+                {personalInfo?.about_me}
               </p>
               <div className="d-flex flex-wrap gap-3">
                 <a href="#portfolio" className="btn-warm">
@@ -112,8 +113,8 @@ export default async function Home() {
                   backgroundImage: "linear-gradient(rgba(244, 248, 252, 0.5), rgba(244, 248, 252, 0.5)), url('/images/tech-doodles-bg.png')",
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  width: "286px",
-                  height: "286px"
+                  width: "clamp(200px, 40vw, 286px)",
+                  height: "clamp(200px, 40vw, 286px)"
                 }}
               >
                 <img
@@ -121,8 +122,8 @@ export default async function Home() {
                   alt={personalInfo?.name}
                   className="rounded-circle border border-4 border-white shadow-sm"
                   style={{ 
-                    width: "254px", 
-                    height: "254px", 
+                    width: "clamp(175px, 36vw, 254px)", 
+                    height: "clamp(175px, 36vw, 254px)", 
                     objectFit: "cover",
                     filter: "brightness(1.10) contrast(1.02)"
                   }}
@@ -131,16 +132,21 @@ export default async function Home() {
 
               {/* Highlighted Skills */}
               {highlightedSkills && highlightedSkills.length > 0 && (
-                <div className="d-flex justify-content-center align-items-center gap-3 mt-4 flex-wrap">
+                <div className="d-flex justify-content-center align-items-center gap-2 mt-3 flex-wrap">
                   {highlightedSkills.map((skill) => (
                      <div 
                        key={skill.id}
-                       className="bg-white rounded-circle p-1 shadow-sm border border-light-subtle d-flex align-items-center justify-content-center"
-                       style={{ width: "80px", height: "80px", transition: "all 0.2s ease" }}
+                       className="bg-white rounded-circle shadow-sm border border-light-subtle d-flex align-items-center justify-content-center"
+                       style={{ 
+                         width: "clamp(50px, 12vw, 80px)", 
+                         height: "clamp(50px, 12vw, 80px)", 
+                         transition: "all 0.2s ease",
+                         padding: "4px"
+                       }}
                        title={skill.name}
                      >
                        {skill.logo_url ? (
-                         <img src={skill.logo_url} alt={skill.name} style={{ width: "64px", height: "64px", objectFit: "contain" }} />
+                         <img src={skill.logo_url} alt={skill.name} style={{ width: "clamp(34px, 9vw, 64px)", height: "clamp(34px, 9vw, 64px)", objectFit: "contain" }} />
                        ) : (
                          <i className="bi bi-code-slash text-warning" style={{ fontSize: "2rem" }}></i>
                        )}
@@ -166,20 +172,20 @@ export default async function Home() {
                 <div className="row g-3 mt-1">
                   <div className="col-6">
                     <div className="bg-light-subtle p-4 rounded-4 shadow-sm border border-light-subtle text-center h-100">
-                      <div className="text-primary fs-1 fw-bold font-monospace">9+</div>
+                      <div className="text-primary fs-1 fw-bold font-monospace">10+</div>
                       <div className="small text-muted fw-semibold">Years Experience</div>
                     </div>
                   </div>
                   <div className="col-6">
                     <div className="bg-light-subtle p-4 rounded-4 shadow-sm border border-light-subtle text-center h-100">
                       <div className="text-primary fs-1 fw-bold font-monospace">{portfolios.length}+</div>
-                      <div className="small text-muted fw-semibold">Projects Built</div>
+                      <div className="small text-muted fw-semibold">Projects Build</div>
                     </div>
                   </div>
                   <div className="col-6">
                     <div className="bg-light-subtle p-4 rounded-4 shadow-sm border border-light-subtle text-center h-100">
                       <div className="text-primary fs-1 fw-bold font-monospace">{certificates.length}+</div>
-                      <div className="small text-muted fw-semibold">Credentials</div>
+                      <div className="small text-muted fw-semibold">Certificate</div>
                     </div>
                   </div>
                   <div className="col-6">
@@ -225,14 +231,25 @@ export default async function Home() {
                   <i className="bi bi-book me-2 text-primary"></i> Academic Background
                 </h3>
                 {education.map((edu) => (
-                  <div key={edu.id} className="mb-4">
-                    <div>
+                  <div key={edu.id} className="mb-4 d-flex align-items-start gap-3">
+                    {/* School Logo */}
+                    <div className="flex-shrink-0 bg-white border border-light-subtle rounded-3 shadow-sm d-flex align-items-center justify-content-center" style={{ width: "72px", height: "72px", padding: "3px" }}>
+                      {edu.logo_url ? (
+                        <img src={edu.logo_url} alt={edu.school} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                      ) : (
+                        <div className="text-primary-emphasis d-flex align-items-center justify-content-center bg-primary-subtle rounded-circle" style={{ width: "52px", height: "52px" }}>
+                          <i className="bi bi-mortarboard fs-4"></i>
+                        </div>
+                      )}
+                    </div>
+                    {/* Info */}
+                    <div className="flex-grow-1">
                       <h4 className="h6 text-dark fw-bold mb-1">{edu.degree} in {edu.major}</h4>
                       <p className="small text-muted mb-0">{edu.school}</p>
+                      <small className="text-muted d-block mt-1">
+                        <i className="bi bi-calendar-range me-1"></i> {edu.start_date} - {edu.end_date}
+                      </small>
                     </div>
-                    <small className="text-muted d-block mt-2">
-                      <i className="bi bi-calendar-range me-1"></i> {edu.start_date} - {edu.end_date}
-                    </small>
                   </div>
                 ))}
 
@@ -294,7 +311,7 @@ export default async function Home() {
                           {/* Header Row: Logo next to Title info */}
                           <div className="d-flex align-items-center gap-4 mb-3">
                             {/* Company Logo */}
-                            <div className="flex-shrink-0 bg-white border border-light-subtle rounded-3 p-2 shadow-sm d-flex align-items-center justify-content-center" style={{ width: "80px", height: "80px" }}>
+                            <div className="flex-shrink-0 bg-white border border-light-subtle rounded-3 p-1 shadow-sm d-flex align-items-center justify-content-center" style={{ width: "80px", height: "80px" }}>
                               {exp.logo_url ? (
                                 <img 
                                   src={exp.logo_url} 
@@ -313,7 +330,7 @@ export default async function Home() {
                               <span className="resume-date d-inline-block mb-1">{exp.start_date} - {exp.end_date}</span>
                               <h3 className="resume-title mb-1">{exp.role}</h3>
                               <h4 className="resume-company mb-0 text-muted-emphasis">
-                                {exp.company} | <i className="bi bi-geo-alt me-1"></i> {exp.location}
+                                {exp.company} - <i className="bi bi-geo-alt me-1"></i> {exp.location}
                               </h4>
                             </div>
                           </div>
@@ -328,7 +345,7 @@ export default async function Home() {
                               {expSkills.map((s) => (
                                 <div 
                                   key={s.id} 
-                                  className="d-inline-flex align-items-center gap-2 px-3 py-2 bg-light border border-light-subtle rounded-3"
+                                  className="d-inline-flex align-items-center gap-2 px-1 py-1 bg-light border border-light-subtle rounded-3"
                                   title={s.name}
                                 >
                                   {s.logo_url ? (
@@ -448,7 +465,7 @@ export default async function Home() {
             <div className="col-md-5">
               <h5 className="fs-4 text-dark mb-3">Fatih Syauqi<span className="text-primary">.</span></h5>
               <p className="text-muted mb-4" style={{ maxWidth: "400px" }}>
-                Senior Software Engineer offering 9 years of robust experience in crafting mobile applications and responsive full-stack websites.
+                Software Engineer offering 10 years of robust experience in crafting mobile applications and responsive full-stack websites.
               </p>
               <div className="d-flex mb-4">
                 <a href={personalInfo?.linkedin} target="_blank" rel="noopener noreferrer" className="footer-social-btn">
@@ -492,7 +509,7 @@ export default async function Home() {
           </div>
           <hr className="my-4 border-light-subtle" style={{ opacity: "0.1" }} />
           <div className="d-flex flex-wrap justify-content-between align-items-center text-muted small">
-            <span>© {new Date().getFullYear()} Fatih Syauqi. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} {personalInfo?.name}. All rights reserved.</span>
           </div>
         </div>
       </footer>

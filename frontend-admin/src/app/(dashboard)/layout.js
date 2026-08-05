@@ -2,12 +2,25 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function DashboardLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar when navigating on mobile
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [pathname]);
+
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === "Escape") setSidebarOpen(false); };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
 
   const handleLogout = async () => {
     if (!confirm("Are you sure you want to log out?")) return;
@@ -34,19 +47,50 @@ export default function DashboardLayout({ children }) {
   ];
 
   return (
-    <div className="container-fluid">
-      <div className="row">
-        {/* Sidebar */}
-        <div className="col-12 col-md-3 col-lg-2 px-0 sidebar d-flex flex-column justify-content-between position-fixed top-0 start-0">
-          <div className="w-100">
-            <div className="sidebar-header text-center">
-              <span className="font-serif fw-bold text-white fs-4">
-                Admin Panel<span className="text-warning">.</span>
-              </span>
-              <small className="d-block text-muted mt-1">CV Dashboard</small>
-            </div>
-            
-            <ul className="nav flex-column w-100 mt-3">
+    <div className="admin-shell">
+      {/* ── Mobile Top Bar ── */}
+      <header className="admin-topbar d-flex d-md-none align-items-center justify-content-between px-3 py-2">
+        <span className="font-serif fw-bold text-white fs-5">
+          Admin Panel<span className="text-warning">.</span>
+        </span>
+        <button
+          className="btn btn-sm btn-outline-light"
+          onClick={() => setSidebarOpen((o) => !o)}
+          aria-label="Toggle menu"
+        >
+          <i className={`bi ${sidebarOpen ? "bi-x-lg" : "bi-list"} fs-5`}></i>
+        </button>
+      </header>
+
+      {/* ── Backdrop overlay (mobile only) ── */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop d-md-none"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <div className="admin-body">
+        {/* ── Sidebar ── */}
+        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+          {/* Brand (desktop only — mobile has topbar) */}
+          <div className="sidebar-header text-center d-none d-md-block">
+            <span className="font-serif fw-bold text-white fs-4">
+              Admin Panel<span className="text-warning">.</span>
+            </span>
+            <small className="d-block text-muted mt-1">CV Dashboard</small>
+          </div>
+
+          {/* Mobile brand inside drawer */}
+          <div className="sidebar-header text-center d-md-none">
+            <span className="font-serif fw-bold text-white fs-5">
+              Admin Panel<span className="text-warning">.</span>
+            </span>
+            <small className="d-block text-muted mt-1">CV Dashboard</small>
+          </div>
+
+          <nav className="w-100 mt-2">
+            <ul className="nav flex-column w-100">
               {navLinks.map((link) => {
                 const isActive = pathname === link.href;
                 return (
@@ -62,10 +106,10 @@ export default function DashboardLayout({ children }) {
                 );
               })}
             </ul>
-          </div>
+          </nav>
 
           {/* Logout / User Info */}
-          <div className="p-3 w-100 border-top border-secondary-subtle" style={{ borderColor: "rgba(255,255,255,0.05) !important" }}>
+          <div className="p-3 w-100 border-top border-secondary-subtle mt-auto">
             <div className="d-flex align-items-center gap-2 mb-3 px-3 text-white-50">
               <i className="bi bi-circle-fill text-success" style={{ fontSize: "0.6rem" }}></i>
               <small className="fw-semibold text-white">Administrator</small>
@@ -85,14 +129,14 @@ export default function DashboardLayout({ children }) {
               )}
             </button>
           </div>
-        </div>
+        </aside>
 
-        {/* Main Content Area */}
-        <div className="col-12 col-md-9 col-lg-10 offset-md-3 offset-lg-2 px-0">
+        {/* ── Main Content ── */}
+        <main className="admin-main">
           <div className="main-content">
             {children}
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

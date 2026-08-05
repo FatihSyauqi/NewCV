@@ -58,6 +58,8 @@ export default function CVSectionsClient({
   const [eduStart, setEduStart] = useState("");
   const [eduEnd, setEduEnd] = useState("");
   const [eduSort, setEduSort] = useState(0);
+  const [eduLogoUrl, setEduLogoUrl] = useState("");
+  const [uploadingEduLogo, setUploadingEduLogo] = useState(false);
 
   // Certificate Form Fields
   const [editingCertId, setEditingCertId] = useState(null);
@@ -100,6 +102,7 @@ export default function CVSectionsClient({
     setEduStart("");
     setEduEnd("");
     setEduSort(0);
+    setEduLogoUrl("");
     setShowEduForm(false);
   };
 
@@ -198,7 +201,8 @@ export default function CVSectionsClient({
       gpa,
       start_date: eduStart,
       end_date: eduEnd,
-      sort_order: parseInt(eduSort, 10) || 0
+      sort_order: parseInt(eduSort, 10) || 0,
+      logo_url: eduLogoUrl || null
     };
 
     try {
@@ -491,6 +495,7 @@ export default function CVSectionsClient({
     setEduStart(e.start_date);
     setEduEnd(e.end_date);
     setEduSort(e.sort_order || 0);
+    setEduLogoUrl(e.logo_url || "");
     setShowEduForm(true);
   };
 
@@ -562,6 +567,23 @@ export default function CVSectionsClient({
   ];
 
   const eduColumns = [
+    {
+      key: "logo_url",
+      label: "Logo",
+      sortable: false,
+      style: { width: "70px" },
+      render: (e) => (
+        e.logo_url ? (
+          <div className="d-flex align-items-center justify-content-center border rounded p-1 bg-light" style={{ width: "48px", height: "48px" }}>
+            <img src={getImageUrl(e.logo_url)} alt={e.school} style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+          </div>
+        ) : (
+          <div className="bg-light-subtle text-muted rounded border d-flex align-items-center justify-content-center" style={{ width: "48px", height: "48px" }}>
+            <i className="bi bi-mortarboard"></i>
+          </div>
+        )
+      )
+    },
     {
       key: "degree",
       label: "Degree & Major",
@@ -738,7 +760,7 @@ export default function CVSectionsClient({
 
           {/* Exp Form Modal */}
           {showExpForm && (
-            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
+            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", zIndex: 1060 }}>
               <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div className="modal-content border-0 shadow-lg">
                   <div className="modal-header">
@@ -893,7 +915,7 @@ export default function CVSectionsClient({
 
           {/* Edu Form Modal */}
           {showEduForm && (
-            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
+            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", zIndex: 1060 }}>
               <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div className="modal-content border-0 shadow-lg">
                   <div className="modal-header">
@@ -930,6 +952,80 @@ export default function CVSectionsClient({
                         <div className="col-md-6">
                           <label className="form-label small text-muted fw-semibold">Sort Order</label>
                           <input type="number" className="form-control" style={{ maxWidth: "200px" }} value={eduSort} onChange={(e) => setEduSort(e.target.value)} required />
+                        </div>
+                        <div className="col-md-12">
+                          <label className="form-label small fw-semibold text-muted">School Logo</label>
+                          <div className="d-flex align-items-center gap-3">
+                            {eduLogoUrl ? (
+                              <div className="border rounded p-2 bg-light d-flex align-items-center justify-content-center" style={{ width: "72px", height: "72px" }}>
+                                <img src={getImageUrl(eduLogoUrl)} alt="School Logo Preview" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                              </div>
+                            ) : (
+                              <div className="border rounded bg-light-subtle d-flex align-items-center justify-content-center text-muted" style={{ width: "72px", height: "72px" }}>
+                                <i className="bi bi-mortarboard fs-2"></i>
+                              </div>
+                            )}
+                            <div className="flex-grow-1">
+                              <input
+                                type="file"
+                                className="form-control mb-2"
+                                accept="image/*"
+                                onChange={async (e) => {
+                                  const file = e.target.files[0];
+                                  if (!file) return;
+                                  setUploadingEduLogo(true);
+                                  const formData = new FormData();
+                                  formData.append("file", file);
+                                  formData.append("type", "education");
+                                  formData.append("name", school || "school-logo");
+                                  formData.append("oldPath", eduLogoUrl);
+                                  try {
+                                    const res = await fetch("/admin/api/upload", { method: "POST", body: formData });
+                                    const data = await res.json();
+                                    if (!res.ok) throw new Error(data.error || "Upload failed");
+                                    setEduLogoUrl(data.logoUrl);
+                                  } catch (err) { setError(err.message); }
+                                  finally { setUploadingEduLogo(false); }
+                                }}
+                                disabled={uploadingEduLogo}
+                              />
+                              <input
+                                type="text"
+                                className="form-control form-control-sm text-muted"
+                                placeholder="Or enter logo URL (e.g. /uploads/education/logo.png)"
+                                value={eduLogoUrl}
+                                onChange={(e) => setEduLogoUrl(e.target.value)}
+                              />
+                              {eduLogoUrl && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger mt-2"
+                                  onClick={async () => {
+                                    if (!confirm("Delete this school logo?")) return;
+                                    setUploadingEduLogo(true);
+                                    try {
+                                      const res = await fetch("/admin/api/upload", {
+                                        method: "DELETE",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ filePath: eduLogoUrl }),
+                                      });
+                                      if (!res.ok) throw new Error("Delete failed");
+                                      setEduLogoUrl("");
+                                    } catch (err) { setError(err.message); }
+                                    finally { setUploadingEduLogo(false); }
+                                  }}
+                                  disabled={uploadingEduLogo}
+                                >
+                                  <i className="bi bi-trash me-1"></i> Delete Logo
+                                </button>
+                              )}
+                              {uploadingEduLogo && (
+                                <div className="mt-1 small text-primary">
+                                  <span className="spinner-border spinner-border-sm me-1" role="status"></span> Uploading...
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -974,7 +1070,7 @@ export default function CVSectionsClient({
 
           {/* Cert Form Modal */}
           {showCertForm && (
-            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
+            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", zIndex: 1060 }}>
               <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div className="modal-content border-0 shadow-lg">
                   <div className="modal-header">
@@ -1047,7 +1143,7 @@ export default function CVSectionsClient({
 
           {/* Skill Form Modal */}
           {showSkillForm && (
-            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)" }}>
+            <div className="modal fade show d-block" tabIndex="-1" role="dialog" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", zIndex: 1060 }}>
               <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div className="modal-content border-0 shadow-lg">
                   <div className="modal-header">
