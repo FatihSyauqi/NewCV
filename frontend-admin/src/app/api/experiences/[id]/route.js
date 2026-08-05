@@ -4,13 +4,13 @@ import { NextResponse } from "next/server";
 export async function PUT(request, { params }) {
   try {
     const { id } = params;
-    const { company, role, location, start_date, end_date, description, sort_order, logo_url } = await request.json();
+    const { company, role, location, start_date, end_date, description, sort_order, logo_url, skill_ids } = await request.json();
 
     await query(
       `UPDATE experiences 
-       SET company = ?, role = ?, location = ?, start_date = ?, end_date = ?, description = ?, sort_order = ?, logo_url = ? 
+       SET company = ?, role = ?, location = ?, start_date = ?, end_date = ?, description = ?, sort_order = ?, logo_url = ?, skill_ids = ? 
        WHERE id = ?`,
-      [company, role, location, start_date, end_date, description, sort_order, logo_url || null, id]
+      [company, role, location, start_date, end_date, description, sort_order, logo_url || null, skill_ids || null, id]
     );
 
     return NextResponse.json({ success: true, message: "Experience updated successfully" });

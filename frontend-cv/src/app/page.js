@@ -283,44 +283,69 @@ export default async function Home() {
           <div className="row justify-content-center">
             <div className="col-12">
               <div className="resume-section">
-                {experiences.map((exp, idx) => (
-                  <div key={exp.id} className="resume-item">
-                    <div className={idx === 0 ? "resume-dot-latest" : "resume-dot"}></div>
-                    <div className="resume-content">
-                      <div className="card-custom bg-white text-start">
-                        {/* Header Row: Logo next to Title info */}
-                        <div className="d-flex align-items-center gap-4 mb-3">
-                          {/* Company Logo */}
-                          <div className="flex-shrink-0 bg-white border border-light-subtle rounded-3 p-2 shadow-sm d-flex align-items-center justify-content-center" style={{ width: "80px", height: "80px" }}>
-                            {exp.logo_url ? (
-                              <img 
-                                src={exp.logo_url} 
-                                alt={exp.company} 
-                                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} 
-                              />
-                            ) : (
-                              <div className="text-primary-emphasis d-flex align-items-center justify-content-center bg-primary-subtle rounded-circle" style={{ width: "60px", height: "60px" }}>
-                                <i className="bi bi-building fs-3"></i>
-                              </div>
-                            )}
+                {experiences.map((exp, idx) => {
+                  const expSkillIds = exp.skill_ids ? exp.skill_ids.split(",").map(Number).filter(Boolean) : [];
+                  const expSkills = skills.filter((s) => expSkillIds.includes(s.id));
+                  return (
+                    <div key={exp.id} className="resume-item">
+                      <div className={idx === 0 ? "resume-dot-latest" : "resume-dot"}></div>
+                      <div className="resume-content">
+                        <div className="card-custom bg-white text-start">
+                          {/* Header Row: Logo next to Title info */}
+                          <div className="d-flex align-items-center gap-4 mb-3">
+                            {/* Company Logo */}
+                            <div className="flex-shrink-0 bg-white border border-light-subtle rounded-3 p-2 shadow-sm d-flex align-items-center justify-content-center" style={{ width: "80px", height: "80px" }}>
+                              {exp.logo_url ? (
+                                <img 
+                                  src={exp.logo_url} 
+                                  alt={exp.company} 
+                                  style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} 
+                                />
+                              ) : (
+                                <div className="text-primary-emphasis d-flex align-items-center justify-content-center bg-primary-subtle rounded-circle" style={{ width: "60px", height: "60px" }}>
+                                  <i className="bi bi-building fs-3"></i>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Details */}
+                            <div className="flex-grow-1">
+                              <span className="resume-date d-inline-block mb-1">{exp.start_date} - {exp.end_date}</span>
+                              <h3 className="resume-title mb-1">{exp.role}</h3>
+                              <h4 className="resume-company mb-0 text-muted-emphasis">
+                                {exp.company} | <i className="bi bi-geo-alt me-1"></i> {exp.location}
+                              </h4>
+                            </div>
                           </div>
 
-                          {/* Details */}
-                          <div className="flex-grow-1">
-                            <span className="resume-date d-inline-block mb-1">{exp.start_date} - {exp.end_date}</span>
-                            <h3 className="resume-title mb-1">{exp.role}</h3>
-                            <h4 className="resume-company mb-0 text-muted-emphasis">
-                              {exp.company} | <i className="bi bi-geo-alt me-1"></i> {exp.location}
-                            </h4>
-                          </div>
+                          {/* Description (aligned to the left of the card, flush with the logo) */}
+                          <p className="text-muted mb-0" style={{ fontSize: "0.95rem", lineHeight: "1.6" }}>{exp.description}</p>
+
+                          {/* Associated Skills */}
+                          {expSkills.length > 0 && (
+                            <div className="d-flex flex-wrap gap-3 mt-4 pt-3 border-top border-light-subtle align-items-center">
+                              <small className="text-muted fw-bold me-1" style={{ fontSize: "0.8rem" }}>Skills & Tech Stack:</small>
+                              {expSkills.map((s) => (
+                                <div 
+                                  key={s.id} 
+                                  className="d-inline-flex align-items-center gap-2 px-3 py-2 bg-light border border-light-subtle rounded-3"
+                                  title={s.name}
+                                >
+                                  {s.logo_url ? (
+                                    <img src={s.logo_url} alt="" style={{ width: "18px", height: "18px", objectFit: "contain" }} />
+                                  ) : (
+                                    <i className="bi bi-code-slash text-primary" style={{ fontSize: "0.85rem" }}></i>
+                                  )}
+                                  <span className="fw-semibold text-dark" style={{ fontSize: "0.8rem" }}>{s.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-
-                        {/* Description (aligned to the left of the card, flush with the logo) */}
-                        <p className="text-muted mb-0" style={{ fontSize: "0.95rem", lineHeight: "1.6" }}>{exp.description}</p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

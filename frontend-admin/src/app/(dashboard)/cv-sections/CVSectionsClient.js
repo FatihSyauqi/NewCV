@@ -47,6 +47,7 @@ export default function CVSectionsClient({
   const [expSort, setExpSort] = useState(0);
   const [expLogoUrl, setExpLogoUrl] = useState("");
   const [uploadingExpLogo, setUploadingExpLogo] = useState(false);
+  const [selectedSkillIds, setSelectedSkillIds] = useState([]);
 
   // Education Form Fields
   const [editingEduId, setEditingEduId] = useState(null);
@@ -86,6 +87,7 @@ export default function CVSectionsClient({
     setExpDesc("");
     setExpSort(0);
     setExpLogoUrl("");
+    setSelectedSkillIds([]);
     setShowExpForm(false);
   };
 
@@ -135,7 +137,8 @@ export default function CVSectionsClient({
       end_date: expEnd,
       description: expDesc,
       sort_order: parseInt(expSort, 10) || 0,
-      logo_url: expLogoUrl || null
+      logo_url: expLogoUrl || null,
+      skill_ids: selectedSkillIds.join(",")
     };
 
     try {
@@ -474,6 +477,8 @@ export default function CVSectionsClient({
     setExpDesc(e.description);
     setExpSort(e.sort_order || 0);
     setExpLogoUrl(e.logo_url || "");
+    const ids = e.skill_ids ? e.skill_ids.split(",").map(Number).filter(Boolean) : [];
+    setSelectedSkillIds(ids);
     setShowExpForm(true);
   };
 
@@ -815,6 +820,35 @@ export default function CVSectionsClient({
                         <div className="col-12">
                           <label className="form-label small text-muted fw-semibold">Responsibilities / Description</label>
                           <textarea className="form-control" rows="4" value={expDesc} onChange={(e) => setExpDesc(e.target.value)} required></textarea>
+                        </div>
+                        <div className="col-md-12">
+                          <label className="form-label small fw-semibold text-muted">Skills / Technologies (Select multiple)</label>
+                          <div className="d-flex flex-wrap gap-2 border rounded p-3 bg-light" style={{ maxHeight: "200px", overflowY: "auto" }}>
+                            {skills.map((s) => {
+                              const isChecked = selectedSkillIds.includes(s.id);
+                              return (
+                                <div key={s.id} className="form-check me-3 mb-2" style={{ minWidth: "180px" }}>
+                                  <input
+                                    className="form-check-input"
+                                    type="checkbox"
+                                    id={`exp-skill-${s.id}`}
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      setSelectedSkillIds((prev) =>
+                                        prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                                      );
+                                    }}
+                                  />
+                                  <label className="form-check-label small text-dark d-flex align-items-center gap-2 mb-0" htmlFor={`exp-skill-${s.id}`} style={{ cursor: "pointer" }}>
+                                    {s.logo_url && (
+                                      <img src={getImageUrl(s.logo_url)} alt="" style={{ width: "20px", height: "20px", objectFit: "contain" }} />
+                                    )}
+                                    {s.name}
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     </div>
