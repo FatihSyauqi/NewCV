@@ -12,12 +12,12 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const { company, role, location, start_date, end_date, description, sort_order } = await request.json();
+    const { company, role, location, start_date, end_date, description, sort_order, logo_url } = await request.json();
 
     const result = await query(
-      `INSERT INTO experiences (company, role, location, start_date, end_date, description, sort_order) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [company, role, location, start_date, end_date, description, sort_order || 0]
+      `INSERT INTO experiences (company, role, location, start_date, end_date, description, sort_order, logo_url) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [company, role, location, start_date, end_date, description, sort_order || 0, logo_url || null]
     );
 
     return NextResponse.json({ success: true, id: result.insertId, message: "Experience added successfully" });

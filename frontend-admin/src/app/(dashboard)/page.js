@@ -9,7 +9,7 @@ async function getStats() {
     const blogCount = await query("SELECT COUNT(*) as count FROM blogs");
     const expCount = await query("SELECT COUNT(*) as count FROM experiences");
     const certCount = await query("SELECT COUNT(*) as count FROM certificates");
-    const profile = await query("SELECT name, email, location FROM personal_info LIMIT 1");
+    const profile = await query("SELECT name, email, location, avatar_url FROM personal_info LIMIT 1");
 
     return {
       portfolios: portfolioCount[0]?.count || 0,
@@ -46,7 +46,7 @@ export default async function DashboardPage() {
           <div className="row align-items-center">
             <div className="col-auto">
               <img
-                src="/images/avatar.jpg"
+                src={stats.profile.avatar_url ? (stats.profile.avatar_url.startsWith('http') || stats.profile.avatar_url.startsWith('/admin') ? stats.profile.avatar_url : '/admin' + stats.profile.avatar_url) : '/admin/images/avatar.jpg'}
                 alt={stats.profile.name}
                 className="rounded-circle border border-3 border-warning shadow-sm"
                 style={{ width: "70px", height: "70px", objectFit: "cover" }}

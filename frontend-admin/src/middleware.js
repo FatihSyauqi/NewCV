@@ -49,5 +49,7 @@ export const config = {
     "/api/experiences/:path*",
     "/api/education/:path*",
     "/api/certificates/:path*",
+    "/api/skills/:path*",
+    "/api/upload",
   ],
 };

@@ -476,3 +476,45 @@ h1, h2, h3, h4, h5, h6 {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(255, 125, 102, 0.5);
 }
+
+/* Infinite Horizontal Marquee */
+.marquee-container {
+  overflow: hidden;
+  user-select: none;
+  display: flex;
+  width: 100%;
+  mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 15%, black 85%, transparent);
+}
+
+.marquee-content {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+  width: max-content;
+  animation: scroll-marquee 35s linear infinite;
+}
+
+.marquee-container:hover .marquee-content {
+  animation-play-state: paused;
+}
+
+.marquee-item {
+  flex-shrink: 0;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  background-color: var(--color-card-bg);
+}
+.marquee-item:hover {
+  transform: translateY(-4px) scale(1.03);
+  border-color: rgba(2, 132, 199, 0.2) !important;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08) !important;
+}
+
+@keyframes scroll-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}

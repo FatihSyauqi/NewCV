@@ -2,6 +2,7 @@ import { query } from "@/lib/db";
 import PortfolioGrid from "./components/PortfolioGrid";
 import Navbar from "./components/Navbar";
 import Link from "next/link";
+import MarqueeScroller from "./components/MarqueeScroller";
 
 // Force dynamic rendering since we are reading from DB
 export const revalidate = 0;
@@ -11,7 +12,7 @@ async function getCVData() {
     const personalInfo = await query("SELECT * FROM personal_info LIMIT 1");
     const experiences = await query("SELECT * FROM experiences ORDER BY sort_order ASC, id DESC");
     const education = await query("SELECT * FROM education ORDER BY sort_order ASC");
-    const skills = await query("SELECT * FROM skills");
+    const skills = await query("SELECT * FROM skills ORDER BY sort_order ASC, id ASC");
     const certificates = await query("SELECT * FROM certificates ORDER BY sort_order ASC");
     const portfolios = await query("SELECT * FROM portfolios ORDER BY id DESC");
     const blogs = await query("SELECT * FROM blogs WHERE status = 'published' ORDER BY created_at DESC LIMIT 3");
@@ -51,6 +52,7 @@ async function getCVData() {
 export default async function Home() {
   const data = await getCVData();
   const { personalInfo, experiences, education, skills, certificates, portfolios, blogs } = data;
+  const highlightedSkills = skills.filter((s) => s.is_highlight === 1);
 
   // Group skills by category
   const skillsGrouped = {};
@@ -126,6 +128,26 @@ export default async function Home() {
                   }}
                 />
               </div>
+
+              {/* Highlighted Skills */}
+              {highlightedSkills && highlightedSkills.length > 0 && (
+                <div className="d-flex justify-content-center align-items-center gap-3 mt-4 flex-wrap">
+                  {highlightedSkills.map((skill) => (
+                     <div 
+                       key={skill.id}
+                       className="bg-white rounded-circle p-1 shadow-sm border border-light-subtle d-flex align-items-center justify-content-center"
+                       style={{ width: "80px", height: "80px", transition: "all 0.2s ease" }}
+                       title={skill.name}
+                     >
+                       {skill.logo_url ? (
+                         <img src={skill.logo_url} alt={skill.name} style={{ width: "64px", height: "64px", objectFit: "contain" }} />
+                       ) : (
+                         <i className="bi bi-code-slash text-warning" style={{ fontSize: "2rem" }}></i>
+                       )}
+                     </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -266,12 +288,35 @@ export default async function Home() {
                     <div className={idx === 0 ? "resume-dot-latest" : "resume-dot"}></div>
                     <div className="resume-content">
                       <div className="card-custom bg-white text-start">
-                        <span className="resume-date">{exp.start_date} - {exp.end_date}</span>
-                        <h3 className="resume-title">{exp.role}</h3>
-                        <h4 className="resume-company">
-                          {exp.company} | <i className="bi bi-geo-alt me-1"></i> {exp.location}
-                        </h4>
-                        <p className="text-muted mb-0" style={{ fontSize: "0.95rem" }}>{exp.description}</p>
+                        {/* Header Row: Logo next to Title info */}
+                        <div className="d-flex align-items-center gap-4 mb-3">
+                          {/* Company Logo */}
+                          <div className="flex-shrink-0 bg-white border border-light-subtle rounded-3 p-2 shadow-sm d-flex align-items-center justify-content-center" style={{ width: "80px", height: "80px" }}>
+                            {exp.logo_url ? (
+                              <img 
+                                src={exp.logo_url} 
+                                alt={exp.company} 
+                                style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} 
+                              />
+                            ) : (
+                              <div className="text-primary-emphasis d-flex align-items-center justify-content-center bg-primary-subtle rounded-circle" style={{ width: "60px", height: "60px" }}>
+                                <i className="bi bi-building fs-3"></i>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Details */}
+                          <div className="flex-grow-1">
+                            <span className="resume-date d-inline-block mb-1">{exp.start_date} - {exp.end_date}</span>
+                            <h3 className="resume-title mb-1">{exp.role}</h3>
+                            <h4 className="resume-company mb-0 text-muted-emphasis">
+                              {exp.company} | <i className="bi bi-geo-alt me-1"></i> {exp.location}
+                            </h4>
+                          </div>
+                        </div>
+
+                        {/* Description (aligned to the left of the card, flush with the logo) */}
+                        <p className="text-muted mb-0" style={{ fontSize: "0.95rem", lineHeight: "1.6" }}>{exp.description}</p>
                       </div>
                     </div>
                   </div>
@@ -363,25 +408,11 @@ export default async function Home() {
             <h2 className="section-title section-title-center">Tech Stack & Expertise</h2>
           </div>
 
-          <div className="card-custom bg-white p-4 p-md-5">
-            {Object.keys(skillsGrouped).map((category, idx) => (
-              <div key={idx} className={idx !== 0 ? "mt-5" : ""}>
-                <h3 className="h6 mb-3 d-flex align-items-center text-dark text-uppercase fw-bold font-monospace" style={{ letterSpacing: "1px" }}>
-                  <span className="text-primary me-2">
-                    <i className="bi bi-terminal"></i>
-                  </span>
-                  {category}
-                </h3>
-                <div className="d-flex flex-wrap">
-                  {skillsGrouped[category].map((skill, sIdx) => (
-                    <span key={sIdx} className="skill-badge m-0 me-2 mb-2">
-                      {skill}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          {skills && skills.length > 0 ? (
+            <MarqueeScroller skills={skills} />
+          ) : (
+            <div className="text-center text-muted">No skills found.</div>
+          )}
         </div>
       </section>
 
