@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 05, 2026 at 06:28 AM
+-- Generation Time: Aug 05, 2026 at 09:26 AM
 -- Server version: 10.4.18-MariaDB
 -- PHP Version: 7.3.28
 
@@ -105,15 +105,16 @@ CREATE TABLE `education` (
   `gpa` varchar(20) DEFAULT NULL,
   `start_date` varchar(50) NOT NULL,
   `end_date` varchar(50) NOT NULL,
-  `sort_order` int(11) DEFAULT 0
+  `sort_order` int(11) DEFAULT 0,
+  `logo_url` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 --
 -- Dumping data for table `education`
 --
 
-INSERT INTO `education` (`id`, `school`, `degree`, `major`, `gpa`, `start_date`, `end_date`, `sort_order`) VALUES
-(1, 'STIKOM BINANIAGA BOGOR / UNIVERSITY OF BINANIAGA INDONESIA', 'Bachelor\'s Degree', 'Informatics Engineering', '3.53 from 4.00', 'Sept 2015', 'Jan 2020', 1);
+INSERT INTO `education` (`id`, `school`, `degree`, `major`, `gpa`, `start_date`, `end_date`, `sort_order`, `logo_url`) VALUES
+(1, 'STIKOM BINANIAGA BOGOR / UNIVERSITY OF BINANIAGA INDONESIA', 'Bachelor\'s Degree', 'Informatics Engineering', '3.53 from 4.00', 'Sept 2015', 'Jan 2020', 1, '/uploads/education/stikom-binaniaga-bogor-university-of-binaniaga-indonesia-7cc5.png');
 
 -- --------------------------------------------------------
 
@@ -170,7 +171,7 @@ CREATE TABLE `personal_info` (
 --
 
 INSERT INTO `personal_info` (`id`, `name`, `title`, `email`, `linkedin`, `github`, `location`, `about_me`, `portfolio_url`, `avatar_url`, `updated_at`) VALUES
-(1, 'Fatih Syauqi', 'Software Engineer', 'fatihsyqi@gmail.com', 'https://www.linkedin.com/in/fatihsyauqi17', 'https://github.com/fatihsyauqi17', 'Bogor, Jawa Barat, ID', 'I am from Indonesia and working as a software engineer. I have 10 years of experience in developing mobile applications and websites. I am skilled in solving problems, eager to learn new technologies, and able to work effectively in a team. In addition, I am able to handle challenging tasks. See my web portfolio https://fatihsyauqi.my.id', 'https://fatihsyauqi.my.id', '/uploads/profile/avatar-2eb0.png', '2026-08-05 04:22:09');
+(1, 'Fatih Syauqi', 'Software Engineer', 'fatihsyqi@gmail.com', 'https://www.linkedin.com/in/fatihsyauqi17', 'https://github.com/fatihsyauqi17', 'Bogor, Jawa Barat, ID', 'I am an Indonesian software engineer with 9 years of experience. I specialize in designing and engineering high-performance web applications and mobile apps, with expertise in ASP.NET, PHP Laravel, React Native, and DevOps cloud server administration.', 'https://fatihsyauqi.my.id', '/uploads/profile/avatar-2eb0.png', '2026-08-05 06:47:11');
 
 -- --------------------------------------------------------
 
@@ -227,10 +228,7 @@ INSERT INTO `skills` (`id`, `category`, `name`, `logo_url`, `sort_order`, `is_hi
 (2, 'Programming Languages', 'PHP', '/uploads/skills/php-d435.png', 3, 1),
 (4, 'Programming Languages', 'ReactJS', '/uploads/skills/reactjs-bac0.png', 2, 1),
 (5, 'Programming Languages', 'SQL Server', '/uploads/skills/sql-server-e6b8.png', 4, 1),
-(6, 'Programming Tools', 'Visual Studio, VS Code, Android Studio, Xcode, Visual Paradigm, Postman', NULL, 0, 0),
 (7, 'Design Tools', 'Adobe Photoshop', '/uploads/skills/adobe-photoshop-d010.jpg', 10, 0),
-(8, 'Others', 'Setting up web servers (Nginx, Apache)', NULL, 0, 0),
-(9, 'Others', 'Setting up email servers (Zimbra)', NULL, 0, 0),
 (14, 'Others', 'Jenkins', '/uploads/skills/jenkins-7e1f.png', 5, 1),
 (15, 'Programming Languages', 'PostgreSQL', '/uploads/skills/postgresql-7b07.png', 6, 0),
 (16, 'Programming Languages', 'MySQL', '/uploads/skills/mysql-1831.png', 7, 0),
