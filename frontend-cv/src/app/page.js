@@ -4,6 +4,7 @@ import Navbar from "./components/Navbar";
 import Link from "next/link";
 import MarqueeScroller from "./components/MarqueeScroller";
 import ContactSection from "./components/ContactSection";
+import PageLoader from "./components/PageLoader";
 
 // Force dynamic rendering since we are reading from DB
 export const revalidate = 0;
@@ -72,6 +73,9 @@ export default async function Home() {
 
   return (
     <>
+      {/* Full-screen Developer & Career Preloader */}
+      <PageLoader />
+
       {/* Dynamic Navigation */}
       <Navbar brandName={personalInfo?.name} />
 

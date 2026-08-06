@@ -183,7 +183,7 @@ export default function ContactModal({ isOpen, initialPurpose = "Contract / Proj
   const [companyName, setCompanyName] = useState("");
   const [message, setMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
-  
+
   // Math Captcha State
   const [num1, setNum1] = useState(3);
   const [num2, setNum2] = useState(5);
@@ -420,7 +420,7 @@ export default function ContactModal({ isOpen, initialPurpose = "Contract / Proj
                   </div>
                   <h4 className="fw-bold text-dark mb-2">Pesan Berhasil Terkirim!</h4>
                   <p className="text-muted mb-0">
-                    Terima kasih telah menghubungi kami. Pesan dan lampiran Anda telah diteruskan dan akan kami tanggapi secepatnya.
+                    Terima kasih telah menghubungi saya. Pesan dan lampiran Anda telah diteruskan dan akan saya tanggapi secepatnya.
                   </p>
                 </div>
               ) : (
