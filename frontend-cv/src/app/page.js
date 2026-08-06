@@ -3,6 +3,7 @@ import PortfolioGrid from "./components/PortfolioGrid";
 import Navbar from "./components/Navbar";
 import Link from "next/link";
 import MarqueeScroller from "./components/MarqueeScroller";
+import ContactSection from "./components/ContactSection";
 
 // Force dynamic rendering since we are reading from DB
 export const revalidate = 0;
@@ -72,7 +73,7 @@ export default async function Home() {
   return (
     <>
       {/* Dynamic Navigation */}
-      <Navbar />
+      <Navbar brandName={personalInfo?.name} />
 
       {/* Hero Section */}
       <section 
@@ -98,11 +99,11 @@ export default async function Home() {
                 {personalInfo?.about_me}
               </p>
               <div className="d-flex flex-wrap gap-3">
-                <a href="#portfolio" className="btn-warm">
+                <a href="#portfolio" className="btn-warm text-decoration-none">
                   Browse Projects <i className="bi bi-arrow-right ms-2"></i>
                 </a>
-                <a href="#experience" className="btn-warm-outline">
-                  Work History
+                <a href="#experience" className="btn-warm-outline text-decoration-none">
+                  Work Experiences
                 </a>
               </div>
             </div>
@@ -491,20 +492,7 @@ export default async function Home() {
               <p className="small text-muted mb-4">
                 For contract inquiries, consultations, or direct recruitment, send a message or request my full resume.
               </p>
-              <div className="d-flex flex-column gap-2">
-                <a
-                  href={`mailto:${personalInfo?.email}`}
-                  className="btn-highlighted d-flex align-items-center justify-content-center gap-2"
-                >
-                  <i className="bi bi-envelope-fill"></i> Contact Me
-                </a>
-                <a
-                  href={`mailto:${personalInfo?.email}?subject=Request CV Resume`}
-                  className="btn btn-warm-outline d-flex align-items-center justify-content-center gap-2"
-                >
-                  <i className="bi bi-file-earmark-pdf-fill"></i> Request Resume PDF
-                </a>
-              </div>
+              <ContactSection email={personalInfo?.email} />
             </div>
           </div>
           <hr className="my-4 border-light-subtle" style={{ opacity: "0.1" }} />

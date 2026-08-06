@@ -44,6 +44,7 @@ export default function DashboardLayout({ children }) {
     { href: "/portfolios", label: "Portfolios", icon: "bi-briefcase" },
     { href: "/blogs", label: "Blogs/Articles", icon: "bi-newspaper" },
     { href: "/cv-sections", label: "CV Sections", icon: "bi-list-stars" },
+    { href: "/inquiries", label: "Contact Inquiries", icon: "bi-envelope-paper" },
   ];
 
   return (

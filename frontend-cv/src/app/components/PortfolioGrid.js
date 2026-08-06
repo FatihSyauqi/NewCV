@@ -35,23 +35,31 @@ export default function PortfolioGrid({ initialPortfolios }) {
   return (
     <div>
       {/* Category Tabs */}
-      <div className="d-flex flex-wrap justify-content-center gap-2 mb-5">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => handleCategoryChange(cat)}
-            className={`filter-btn ${selectedCategory === cat ? "active" : ""}`}
-          >
-            {cat}
-          </button>
-        ))}
+      <div className="d-flex flex-wrap justify-content-center gap-2.5 mb-5">
+        {categories.map((cat) => {
+          let iconClass = "bi-grid-fill";
+          if (cat === "Website") iconClass = "bi-laptop";
+          if (cat === "Mobile Application") iconClass = "bi-phone";
+
+          return (
+            <button
+              key={cat}
+              onClick={() => handleCategoryChange(cat)}
+              className={`filter-btn ${selectedCategory === cat ? "active" : ""}`}
+            >
+              <i className={`bi ${iconClass}`}></i>
+              <span>{cat}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Portfolios Grid */}
       <div className="row g-4">
         {currentItems.length > 0 ? (
           currentItems.map((p) => {
-            const displayCategory = p.category.toLowerCase().includes("mobile") ? "Mobile Application" : "Website";
+            const isMobileApp = p.category.toLowerCase().includes("mobile");
+            const displayCategory = isMobileApp ? "Mobile Application" : "Website";
             return (
               <div key={p.id} className="col-12 col-md-6 col-lg-4 d-flex">
                 <div
@@ -67,29 +75,35 @@ export default function PortfolioGrid({ initialPortfolios }) {
                         className="w-100 h-100 object-fit-cover portfolio-img"
                       />
                       <div className="portfolio-overlay">
-                        <h5 className="text-white mb-2">{p.title}</h5>
-                        <p className="small text-white-50 mb-3">{displayCategory}</p>
-                        <span className="btn btn-sm btn-warm">
-                          <i className="bi bi-eye me-1"></i> View Details
+                        <h5 className="text-white fw-bold mb-2 text-center">{p.title}</h5>
+                        <p className="small text-white-50 mb-3 text-center">{displayCategory}</p>
+                        <span className="btn btn-sm btn-warm shadow-sm px-3 py-2 rounded-pill d-inline-flex align-items-center gap-2">
+                          <i className="bi bi-eye-fill"></i> View Details
                         </span>
                       </div>
                     </div>
                     <div className="p-4">
-                      <span className="badge bg-light text-primary border border-primary-subtle px-2 py-1 mb-2 rounded">
-                        {displayCategory}
-                      </span>
-                      <h4 className="h5 mb-0" style={{ color: "var(--color-secondary)" }}>
+                      {isMobileApp ? (
+                        <span className="badge bg-info-subtle text-info border border-info-subtle px-2.5 py-1.5 rounded-pill d-inline-flex align-items-center gap-1 mb-2">
+                          <i className="bi bi-phone"></i> Mobile Application
+                        </span>
+                      ) : (
+                        <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 rounded-pill d-inline-flex align-items-center gap-1 mb-2">
+                          <i className="bi bi-laptop"></i> Website
+                        </span>
+                      )}
+                      <h4 className="h5 fw-bold mb-0 text-dark">
                         {p.title}
                       </h4>
                     </div>
                   </div>
                   <div className="px-4 pb-4">
                     <hr className="my-2 border-light-subtle" />
-                    <div className="d-flex flex-wrap gap-1 mt-2">
+                    <div className="d-flex flex-wrap gap-1.5 mt-2">
                       {p.tech_stack.split(",").map((tech, idx) => (
                         <span
                           key={idx}
-                          className="badge bg-body-secondary text-dark-emphasis font-monospace"
+                          className="badge bg-light text-secondary border border-light-subtle font-monospace px-2 py-1"
                           style={{ fontSize: "0.75rem" }}
                         >
                           {tech.trim()}

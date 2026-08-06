@@ -1,0 +1,61 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Frontend CV (Port 3000)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/frontend-cv",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Frontend Admin (Port 3001)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "${workspaceFolder}/frontend-admin",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen"
+    },
+    {
+      "name": "Next.js: Debug Frontend CV",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/frontend-cv/node_modules/next/dist/bin/next",
+      "args": ["dev", "-p", "3000"],
+      "cwd": "${workspaceFolder}/frontend-cv",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Next.js: Debug Frontend Admin",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/frontend-admin/node_modules/next/dist/bin/next",
+      "args": ["dev", "-p", "3001"],
+      "cwd": "${workspaceFolder}/frontend-admin",
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🚀 Run Both (CV & Admin)",
+      "configurations": [
+        "Frontend CV (Port 3000)",
+        "Frontend Admin (Port 3001)"
+      ],
+      "stopAll": true
+    },
+    {
+      "name": "🐛 Debug Both (CV & Admin)",
+      "configurations": [
+        "Next.js: Debug Frontend CV",
+        "Next.js: Debug Frontend Admin"
+      ],
+      "stopAll": true
+    }
+  ]
+}
