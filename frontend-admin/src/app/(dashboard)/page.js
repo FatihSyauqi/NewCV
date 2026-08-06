@@ -46,7 +46,7 @@ export default async function DashboardPage() {
           <div className="row align-items-center">
             <div className="col-auto">
               <img
-                src={stats.profile.avatar_url ? (stats.profile.avatar_url.startsWith('http') || stats.profile.avatar_url.startsWith('/admin') ? stats.profile.avatar_url : '/admin' + stats.profile.avatar_url) : '/admin/images/avatar.jpg'}
+                src={stats.profile.avatar_url ? (stats.profile.avatar_url.startsWith('http') || stats.profile.avatar_url.startsWith('/AdminFSyauqi') ? stats.profile.avatar_url : '/AdminFSyauqi' + stats.profile.avatar_url) : '/AdminFSyauqi/images/avatar.jpg'}
                 alt={stats.profile.name}
                 className="rounded-circle border border-3 border-warning shadow-sm"
                 style={{ width: "70px", height: "70px", objectFit: "cover" }}

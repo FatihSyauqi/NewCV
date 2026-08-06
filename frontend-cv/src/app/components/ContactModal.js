@@ -345,7 +345,14 @@ export default function ContactModal({ isOpen, initialPurpose = "Contract / Proj
         formData.append("files", file);
       });
 
-      const res = await fetch("/api/contact", {
+      const getAdminApiUrl = () => {
+        if (process.env.NEXT_PUBLIC_ADMIN_API_URL) {
+          const envUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL;
+          return envUrl.endsWith("/api/contact") ? envUrl : `${envUrl.replace(/\/$/, "")}/api/contact`;
+        }
+      };
+
+      const res = await fetch(getAdminApiUrl(), {
         method: "POST",
         body: formData,
       });

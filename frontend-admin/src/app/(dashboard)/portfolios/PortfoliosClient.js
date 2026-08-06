@@ -13,8 +13,8 @@ export default function PortfoliosClient({ initialPortfolios }) {
   const getImageUrl = (url) => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
-    if (url.startsWith("/admin")) return url;
-    return url.startsWith("/") ? `/admin${url}` : `/admin/${url}`;
+    if (url.startsWith("/AdminFSyauqi")) return url;
+    return url.startsWith("/") ? `/AdminFSyauqi${url}` : `/AdminFSyauqi/${url}`;
   };
 
   // Form Fields
@@ -43,7 +43,7 @@ export default function PortfoliosClient({ initialPortfolios }) {
     formData.append("oldPath", imageUrl);
 
     try {
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -64,7 +64,7 @@ export default function PortfoliosClient({ initialPortfolios }) {
     if (!confirm("Are you sure you want to delete this image from the server?")) return;
     try {
       setUploadingImage(true);
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: imageUrl }),
@@ -121,14 +121,14 @@ export default function PortfoliosClient({ initialPortfolios }) {
       let response;
       if (editingId) {
         // Edit Mode
-        response = await fetch(`/admin/api/portfolios/${editingId}`, {
+        response = await fetch(`/AdminFSyauqi/api/portfolios/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
         // Add Mode
-        response = await fetch("/admin/api/portfolios", {
+        response = await fetch("/AdminFSyauqi/api/portfolios", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -142,7 +142,7 @@ export default function PortfoliosClient({ initialPortfolios }) {
       }
 
       // Reload lists
-      const fetchRes = await fetch("/admin/api/portfolios");
+      const fetchRes = await fetch("/AdminFSyauqi/api/portfolios");
       const list = await fetchRes.json();
       setPortfolios(list);
       resetForm();
@@ -158,7 +158,7 @@ export default function PortfoliosClient({ initialPortfolios }) {
     if (!confirm("Are you sure you want to delete this portfolio item? All associated files will be cleaned up.")) return;
 
     try {
-      const response = await fetch(`/admin/api/portfolios/${id}`, {
+      const response = await fetch(`/AdminFSyauqi/api/portfolios/${id}`, {
         method: "DELETE"
       });
 

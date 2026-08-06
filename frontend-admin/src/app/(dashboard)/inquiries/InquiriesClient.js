@@ -12,13 +12,14 @@ export default function InquiriesClient({ initialInquiries }) {
   const getFileUrl = (url) => {
     if (!url) return "#";
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    return `http://localhost:3000${url.startsWith("/") ? url : `/${url}`}`;
+    const baseUrl = process.env.NEXT_PUBLIC_CV_URL || "";
+    return `${baseUrl}${url.startsWith("/") ? url : `/${url}`}`;
   };
 
   const handleDelete = async (id) => {
     if (!confirm("Are you sure you want to delete this contact message?")) return;
     try {
-      const res = await fetch("/admin/api/inquiries", {
+      const res = await fetch("/AdminFSyauqi/api/inquiries", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),

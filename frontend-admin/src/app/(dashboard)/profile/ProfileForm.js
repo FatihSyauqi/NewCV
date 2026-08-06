@@ -17,8 +17,8 @@ export default function ProfileForm({ initialProfile }) {
   const getImageUrl = (url) => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
-    if (url.startsWith("/admin")) return url;
-    return url.startsWith("/") ? `/admin${url}` : `/admin/${url}`;
+    if (url.startsWith("/AdminFSyauqi")) return url;
+    return url.startsWith("/") ? `/AdminFSyauqi${url}` : `/AdminFSyauqi/${url}`;
   };
 
   const [loading, setLoading] = useState(false);
@@ -45,7 +45,7 @@ export default function ProfileForm({ initialProfile }) {
     }
 
     try {
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "POST",
         body: dataObj,
       });
@@ -66,7 +66,7 @@ export default function ProfileForm({ initialProfile }) {
     if (!confirm("Are you sure you want to delete this custom avatar from the server?")) return;
     try {
       setUploadingAvatar(true);
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: formData.avatar_url }),
@@ -95,7 +95,7 @@ export default function ProfileForm({ initialProfile }) {
     setError("");
 
     try {
-      const response = await fetch("/admin/api/profile", {
+      const response = await fetch("/AdminFSyauqi/api/profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)

@@ -3,16 +3,26 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
-const TELEGRAM_BOT_TOKEN = "1431026482:AAE4NeChUOL8wmJ71M8A0so5-BCFmcD76GI";
-const TELEGRAM_CHAT_ID = "200585944";
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
-// Sanitize HTML function to prevent HTML/XSS injection attacks
+// CORS headers helper
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 function sanitizeHtml(str) {
   if (!str) return "";
   return str
     .toString()
-    .replace(/<[^>]*>?/gm, "") // Strip raw HTML tags
+    .replace(/<[^>]*>?/gm, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -20,10 +30,15 @@ function sanitizeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
+function toTitleCase(str) {
+  if (!str) return "";
+  return str.toString().replace(/\b[a-zA-Z]/g, (c) => c.toUpperCase());
+}
+
 export async function POST(request) {
   try {
     const formData = await request.formData();
-    
+
     // Extract and sanitize inputs
     const rawName = formData.get("name")?.toString().trim();
     let rawPurpose = formData.get("purpose")?.toString().trim();
@@ -42,18 +57,13 @@ export async function POST(request) {
     if (captchaAnswer !== captchaNum1 + captchaNum2) {
       return NextResponse.json(
         { error: `Verifikasi Captcha Matematika gagal. Jawaban dari ${captchaNum1} + ${captchaNum2} tidak sesuai!` },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
     if (rawPurpose === "Lainnya" && rawOtherPurpose) {
       rawPurpose = `Lainnya (${rawOtherPurpose})`;
     }
-
-function toTitleCase(str) {
-  if (!str) return "";
-  return str.toString().replace(/\b[a-zA-Z]/g, (c) => c.toUpperCase());
-}
 
     // Apply HTML sanitization & Title Case formatting
     const name = toTitleCase(sanitizeHtml(rawName));
@@ -67,7 +77,7 @@ function toTitleCase(str) {
     if (!name || !purpose || !phone || !email || !message) {
       return NextResponse.json(
         { error: "Semua bidang wajib (Nama, Tujuan, No HP/WA, Email, Pesan) harus diisi!" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -76,7 +86,7 @@ function toTitleCase(str) {
     if (!emailRegex.test(email)) {
       return NextResponse.json(
         { error: "Format alamat email tidak valid! (Contoh: nama@domain.com)" },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -85,7 +95,7 @@ function toTitleCase(str) {
     if (!phoneRegex.test(phone.replace(/\s+/g, ""))) {
       return NextResponse.json(
         { error: "Nomor HP / WhatsApp tidak valid! Harap masukkan nomor yang sesuai dengan kode negara." },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -94,43 +104,49 @@ function toTitleCase(str) {
     const uploadedFileUrls = [];
     const savedFilesData = [];
 
-    const cvUploadDir = path.join(process.cwd(), "public", "uploads", "contact");
-    const adminUploadDir = path.join(process.cwd(), "..", "frontend-admin", "public", "uploads", "contact");
+    const adminUploadDir = path.join(process.cwd(), "public", "uploads", "contact");
+    const cvUploadDir = path.join(process.cwd(), "..", "frontend-cv", "public", "uploads", "contact");
 
-    if (!fs.existsSync(cvUploadDir)) {
-      fs.mkdirSync(cvUploadDir, { recursive: true });
-    }
     if (!fs.existsSync(adminUploadDir)) {
-      try { fs.mkdirSync(adminUploadDir, { recursive: true }); } catch (e) {}
+      fs.mkdirSync(adminUploadDir, { recursive: true });
+    }
+    if (!fs.existsSync(cvUploadDir)) {
+      try { fs.mkdirSync(cvUploadDir, { recursive: true }); } catch (e) { }
     }
 
     for (const file of files) {
       if (file && typeof file === "object" && file.name && file.size > 0) {
         if (file.size > MAX_FILE_SIZE) {
-          return NextResponse.json({ error: `File "${file.name}" melebihi ukuran maksimum 2MB!` }, { status: 400 });
+          return NextResponse.json(
+            { error: `File "${file.name}" melebihi ukuran maksimum 2MB!` },
+            { status: 400, headers: corsHeaders }
+          );
         }
 
         const ext = path.extname(file.name).toLowerCase();
         const allowedExts = [".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp"];
         if (!allowedExts.includes(ext)) {
-          return NextResponse.json({ error: `Tipe file "${file.name}" tidak didukung. Hanya PDF dan Gambar yang diizinkan!` }, { status: 400 });
+          return NextResponse.json(
+            { error: `Tipe file "${file.name}" tidak didukung. Hanya PDF dan Gambar yang diizinkan!` },
+            { status: 400, headers: corsHeaders }
+          );
         }
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
         const safeFilename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-        
-        const cvFilePath = path.join(cvUploadDir, safeFilename);
-        const adminFilePath = path.join(adminUploadDir, safeFilename);
 
-        fs.writeFileSync(cvFilePath, buffer);
-        try { fs.writeFileSync(adminFilePath, buffer); } catch (e) {}
+        const adminFilePath = path.join(adminUploadDir, safeFilename);
+        const cvFilePath = path.join(cvUploadDir, safeFilename);
+
+        fs.writeFileSync(adminFilePath, buffer);
+        try { fs.writeFileSync(cvFilePath, buffer); } catch (e) { }
 
         const publicUrl = `/uploads/contact/${safeFilename}`;
         uploadedFileUrls.push(publicUrl);
         savedFilesData.push({
-          path: cvFilePath,
+          path: adminFilePath,
           name: file.name,
           url: publicUrl,
           size: file.size,
@@ -198,11 +214,11 @@ ${message}
         tgFormData.append("caption", `📄 Lampiran dari ${name}: ${item.name}`);
 
         const fileBlob = new Blob([fs.readFileSync(item.path)], { type: item.type || "application/octet-stream" });
-        
+
         const isImage = item.name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
         const endpoint = isImage ? "sendPhoto" : "sendDocument";
         const paramName = isImage ? "photo" : "document";
-        
+
         tgFormData.append(paramName, fileBlob, item.name);
 
         await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/${endpoint}`, {
@@ -214,13 +230,19 @@ ${message}
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Pesan Anda berhasil terkirim! Terima kasih telah menghubungi kami.",
-      id: inquiryId,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Pesan Anda berhasil terkirim! Terima kasih telah menghubungi saya.",
+        id: inquiryId,
+      },
+      { headers: corsHeaders }
+    );
   } catch (error) {
     console.error("Error processing contact inquiry:", error);
-    return NextResponse.json({ error: error.message || "Gagal mengirim pesan." }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message || "Gagal mengirim pesan." },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }

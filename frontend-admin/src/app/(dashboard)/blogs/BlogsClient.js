@@ -13,8 +13,8 @@ export default function BlogsClient({ initialBlogs }) {
   const getImageUrl = (url) => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
-    if (url.startsWith("/admin")) return url;
-    return url.startsWith("/") ? `/admin${url}` : `/admin/${url}`;
+    if (url.startsWith("/AdminFSyauqi")) return url;
+    return url.startsWith("/") ? `/AdminFSyauqi${url}` : `/AdminFSyauqi/${url}`;
   };
 
   // Form Fields
@@ -44,7 +44,7 @@ export default function BlogsClient({ initialBlogs }) {
     formData.append("oldPath", imageUrl);
 
     try {
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -65,7 +65,7 @@ export default function BlogsClient({ initialBlogs }) {
     if (!confirm("Are you sure you want to delete this cover image from the server?")) return;
     try {
       setUploadingImage(true);
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: imageUrl }),
@@ -124,13 +124,13 @@ export default function BlogsClient({ initialBlogs }) {
     try {
       let response;
       if (editingId) {
-        response = await fetch(`/admin/api/blogs/${editingId}`, {
+        response = await fetch(`/AdminFSyauqi/api/blogs/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        response = await fetch("/admin/api/blogs", {
+        response = await fetch("/AdminFSyauqi/api/blogs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -143,7 +143,7 @@ export default function BlogsClient({ initialBlogs }) {
         throw new Error(data.error || "Failed to save blog post");
       }
 
-      const fetchRes = await fetch("/admin/api/blogs");
+      const fetchRes = await fetch("/AdminFSyauqi/api/blogs");
       const list = await fetchRes.json();
       setBlogs(list);
       resetForm();
@@ -159,7 +159,7 @@ export default function BlogsClient({ initialBlogs }) {
     if (!confirm("Are you sure you want to delete this blog post? All associated files will be cleaned up.")) return;
 
     try {
-      const response = await fetch(`/admin/api/blogs/${id}`, {
+      const response = await fetch(`/AdminFSyauqi/api/blogs/${id}`, {
         method: "DELETE"
       });
 

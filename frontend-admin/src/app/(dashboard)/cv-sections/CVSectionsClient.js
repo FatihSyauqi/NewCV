@@ -13,8 +13,8 @@ export default function CVSectionsClient({
   const getImageUrl = (url) => {
     if (!url) return "";
     if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) return url;
-    if (url.startsWith("/admin")) return url;
-    return url.startsWith("/") ? `/admin${url}` : `/admin/${url}`;
+    if (url.startsWith("/AdminFSyauqi")) return url;
+    return url.startsWith("/") ? `/AdminFSyauqi${url}` : `/AdminFSyauqi/${url}`;
   };
 
   const [activeTab, setActiveTab] = useState("experiences");
@@ -147,13 +147,13 @@ export default function CVSectionsClient({
     try {
       let res;
       if (editingExpId) {
-        res = await fetch(`/admin/api/experiences/${editingExpId}`, {
+        res = await fetch(`/AdminFSyauqi/api/experiences/${editingExpId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch("/admin/api/experiences", {
+        res = await fetch("/AdminFSyauqi/api/experiences", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -165,7 +165,7 @@ export default function CVSectionsClient({
         throw new Error(data.error || "Failed to save experience");
       }
 
-      const listRes = await fetch("/admin/api/experiences");
+      const listRes = await fetch("/AdminFSyauqi/api/experiences");
       const list = await listRes.json();
       setExps(list);
       handleResetExp();
@@ -180,7 +180,7 @@ export default function CVSectionsClient({
   const handleDeleteExp = async (id) => {
     if (!confirm("Delete this experience?")) return;
     try {
-      const res = await fetch(`/admin/api/experiences/${id}`, { method: "DELETE" });
+      const res = await fetch(`/AdminFSyauqi/api/experiences/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setExps((prev) => prev.filter((x) => x.id !== id));
       router.refresh();
@@ -208,13 +208,13 @@ export default function CVSectionsClient({
     try {
       let res;
       if (editingEduId) {
-        res = await fetch(`/admin/api/education/${editingEduId}`, {
+        res = await fetch(`/AdminFSyauqi/api/education/${editingEduId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch("/admin/api/education", {
+        res = await fetch("/AdminFSyauqi/api/education", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -226,7 +226,7 @@ export default function CVSectionsClient({
         throw new Error(data.error || "Failed to save education");
       }
 
-      const listRes = await fetch("/admin/api/education");
+      const listRes = await fetch("/AdminFSyauqi/api/education");
       const list = await listRes.json();
       setEdus(list);
       handleResetEdu();
@@ -241,7 +241,7 @@ export default function CVSectionsClient({
   const handleDeleteEdu = async (id) => {
     if (!confirm("Delete this education record?")) return;
     try {
-      const res = await fetch(`/admin/api/education/${id}`, { method: "DELETE" });
+      const res = await fetch(`/AdminFSyauqi/api/education/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setEdus((prev) => prev.filter((x) => x.id !== id));
       router.refresh();
@@ -266,13 +266,13 @@ export default function CVSectionsClient({
     try {
       let res;
       if (editingCertId) {
-        res = await fetch(`/admin/api/certificates/${editingCertId}`, {
+        res = await fetch(`/AdminFSyauqi/api/certificates/${editingCertId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch("/admin/api/certificates", {
+        res = await fetch("/AdminFSyauqi/api/certificates", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -284,7 +284,7 @@ export default function CVSectionsClient({
         throw new Error(data.error || "Failed to save certificate");
       }
 
-      const listRes = await fetch("/admin/api/certificates");
+      const listRes = await fetch("/AdminFSyauqi/api/certificates");
       const list = await listRes.json();
       setCerts(list);
       handleResetCert();
@@ -299,7 +299,7 @@ export default function CVSectionsClient({
   const handleDeleteCert = async (id) => {
     if (!confirm("Delete this certificate?")) return;
     try {
-      const res = await fetch(`/admin/api/certificates/${id}`, { method: "DELETE" });
+      const res = await fetch(`/AdminFSyauqi/api/certificates/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setCerts((prev) => prev.filter((x) => x.id !== id));
       router.refresh();
@@ -322,7 +322,7 @@ export default function CVSectionsClient({
     formData.append("oldPath", skillLogoUrl);
 
     try {
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -343,7 +343,7 @@ export default function CVSectionsClient({
     if (!confirm("Are you sure you want to delete this logo from the server?")) return;
     try {
       setUploadingLogo(true);
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: skillLogoUrl }),
@@ -374,7 +374,7 @@ export default function CVSectionsClient({
     formData.append("oldPath", expLogoUrl);
 
     try {
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -395,7 +395,7 @@ export default function CVSectionsClient({
     if (!confirm("Are you sure you want to delete this company logo from the server?")) return;
     try {
       setUploadingExpLogo(true);
-      const res = await fetch("/admin/api/upload", {
+      const res = await fetch("/AdminFSyauqi/api/upload", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: expLogoUrl }),
@@ -428,13 +428,13 @@ export default function CVSectionsClient({
     try {
       let res;
       if (editingSkillId) {
-        res = await fetch(`/admin/api/skills/${editingSkillId}`, {
+        res = await fetch(`/AdminFSyauqi/api/skills/${editingSkillId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       } else {
-        res = await fetch("/admin/api/skills", {
+        res = await fetch("/AdminFSyauqi/api/skills", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
@@ -446,7 +446,7 @@ export default function CVSectionsClient({
         throw new Error(data.error || "Failed to save skill");
       }
 
-      const listRes = await fetch("/admin/api/skills");
+      const listRes = await fetch("/AdminFSyauqi/api/skills");
       const list = await listRes.json();
       setSkills(list);
       handleResetSkill();
@@ -461,7 +461,7 @@ export default function CVSectionsClient({
   const handleDeleteSkill = async (id) => {
     if (!confirm("Delete this skill? All associated files will be cleaned up.")) return;
     try {
-      const res = await fetch(`/admin/api/skills/${id}`, { method: "DELETE" });
+      const res = await fetch(`/AdminFSyauqi/api/skills/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Delete failed");
       setSkills((prev) => prev.filter((x) => x.id !== id));
       router.refresh();
