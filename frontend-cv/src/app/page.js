@@ -107,7 +107,7 @@ export default async function Home() {
                 </a>
               </div>
             </div>
-            <div className="col-lg-5 order-1 order-lg-2 text-center mb-5 mb-lg-0">
+            <div className="col-lg-5 order-1 order-lg-2 text-center mb-4 mb-lg-0">
               <div 
                 className="d-inline-flex align-items-center justify-content-center rounded-circle p-2 shadow-lg"
                 style={{ 
