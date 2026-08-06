@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 05, 2026 at 09:26 AM
+-- Generation Time: Aug 06, 2026 at 04:35 AM
 -- Server version: 10.4.18-MariaDB
 -- PHP Version: 7.3.28
 
@@ -90,6 +90,39 @@ CREATE TABLE `certificates` (
 INSERT INTO `certificates` (`id`, `title`, `issuer`, `credential_id`, `issue_date`, `sort_order`) VALUES
 (1, 'KEYWORD RESEARCH COURSE WITH GREG GIFFORD', 'Semrush.com', '415701', '2023', 1),
 (2, 'CERTIFIED WEB DEVELOPER (CWDEV)', 'Badan Nasional Sertifikasi Profesi (BNSP)', '62019 2513 6 0028243 2024', '2024', 2);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `contact_inquiries`
+--
+
+CREATE TABLE `contact_inquiries` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `purpose` varchar(255) NOT NULL,
+  `phone` varchar(50) NOT NULL,
+  `email` varchar(255) NOT NULL,
+  `company_name` varchar(255) DEFAULT NULL,
+  `message` text NOT NULL,
+  `files` text DEFAULT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `contact_inquiries_files`
+--
+
+CREATE TABLE `contact_inquiries_files` (
+  `id` int(11) NOT NULL,
+  `inquiry_id` int(11) NOT NULL,
+  `file_name` varchar(255) NOT NULL,
+  `file_url` varchar(255) NOT NULL,
+  `file_size` int(11) NOT NULL,
+  `created_at` datetime DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
 
@@ -262,6 +295,19 @@ ALTER TABLE `certificates`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `contact_inquiries`
+--
+ALTER TABLE `contact_inquiries`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `contact_inquiries_files`
+--
+ALTER TABLE `contact_inquiries_files`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `inquiry_id` (`inquiry_id`);
+
+--
 -- Indexes for table `education`
 --
 ALTER TABLE `education`
@@ -314,6 +360,18 @@ ALTER TABLE `certificates`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
+-- AUTO_INCREMENT for table `contact_inquiries`
+--
+ALTER TABLE `contact_inquiries`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `contact_inquiries_files`
+--
+ALTER TABLE `contact_inquiries_files`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
 -- AUTO_INCREMENT for table `education`
 --
 ALTER TABLE `education`
@@ -342,6 +400,16 @@ ALTER TABLE `portfolios`
 --
 ALTER TABLE `skills`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `contact_inquiries_files`
+--
+ALTER TABLE `contact_inquiries_files`
+  ADD CONSTRAINT `contact_inquiries_files_ibfk_1` FOREIGN KEY (`inquiry_id`) REFERENCES `contact_inquiries` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
