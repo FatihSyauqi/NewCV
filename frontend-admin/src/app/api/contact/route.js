@@ -105,13 +105,9 @@ export async function POST(request) {
     const savedFilesData = [];
 
     const adminUploadDir = path.join(process.cwd(), "public", "uploads", "contact");
-    const cvUploadDir = path.join(process.cwd(), "..", "frontend-cv", "public", "uploads", "contact");
 
     if (!fs.existsSync(adminUploadDir)) {
       fs.mkdirSync(adminUploadDir, { recursive: true });
-    }
-    if (!fs.existsSync(cvUploadDir)) {
-      try { fs.mkdirSync(cvUploadDir, { recursive: true }); } catch (e) { }
     }
 
     for (const file of files) {
@@ -138,10 +134,8 @@ export async function POST(request) {
         const safeFilename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
 
         const adminFilePath = path.join(adminUploadDir, safeFilename);
-        const cvFilePath = path.join(cvUploadDir, safeFilename);
 
         fs.writeFileSync(adminFilePath, buffer);
-        try { fs.writeFileSync(cvFilePath, buffer); } catch (e) { }
 
         const publicUrl = `/uploads/contact/${safeFilename}`;
         uploadedFileUrls.push(publicUrl);

@@ -12,8 +12,8 @@ export default function InquiriesClient({ initialInquiries }) {
   const getFileUrl = (url) => {
     if (!url) return "#";
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    const baseUrl = process.env.NEXT_PUBLIC_CV_URL || "";
-    return `${baseUrl}${url.startsWith("/") ? url : `/${url}`}`;
+    if (url.startsWith("/AdminFSyauqi")) return url;
+    return `/AdminFSyauqi${url.startsWith("/") ? url : `/${url}`}`;
   };
 
   const handleDelete = async (id) => {

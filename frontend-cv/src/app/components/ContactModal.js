@@ -346,10 +346,24 @@ export default function ContactModal({ isOpen, initialPurpose = "Contract / Proj
       });
 
       const getAdminApiUrl = () => {
-        if (process.env.NEXT_PUBLIC_ADMIN_API_URL) {
-          const envUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL;
-          return envUrl.endsWith("/api/contact") ? envUrl : `${envUrl.replace(/\/$/, "")}/api/contact`;
+        let apiUrl = process.env.NEXT_PUBLIC_ADMIN_API_URL;
+        if (!apiUrl && typeof window !== "undefined") {
+          const protocol = window.location.protocol;
+          const hostname = window.location.hostname;
+          const port = process.env.NEXT_PUBLIC_ADMIN_PORT || "3001";
+          apiUrl = `${protocol}//${hostname}:${port}/AdminFSyauqi/api/contact`;
         }
+        if (!apiUrl) {
+          apiUrl = "/AdminFSyauqi/api/contact";
+        }
+
+        // Prevent Mixed Content Error (blocked:mixed-content)
+        // If current page is HTTPS, upgrade http:// to https://
+        if (typeof window !== "undefined" && window.location.protocol === "https:" && apiUrl.startsWith("http://")) {
+          apiUrl = apiUrl.replace("http://", "https://");
+        }
+
+        return apiUrl.endsWith("/api/contact") ? apiUrl : `${apiUrl.replace(/\/$/, "")}/api/contact`;
       };
 
       const res = await fetch(getAdminApiUrl(), {
