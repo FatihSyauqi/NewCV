@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "frontend-admin",
       script: "node_modules/next/dist/bin/next",
-      args: "start -p 3001", // Port dibedakan
+      args: "start -p 3002", // Port dibedakan
       env: {
         NODE_ENV: "production",
       }

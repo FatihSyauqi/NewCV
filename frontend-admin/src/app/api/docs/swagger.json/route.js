@@ -14,11 +14,11 @@ const swaggerSpec = {
   },
   servers: [
     {
-      url: "http://127.0.0.1:3001/AdminFSyauqi",
-      description: "Local Admin API Server (Port 3001 with /AdminFSyauqi basePath)",
+      url: "http://127.0.0.1:3002/AdminFSyauqi",
+      description: "Local Admin API Server (Port 3002 with /AdminFSyauqi basePath)",
     },
     {
-      url: "http://localhost:3001/AdminFSyauqi",
+      url: "http://localhost:3002/AdminFSyauqi",
       description: "Localhost Admin API Server",
     },
   ],

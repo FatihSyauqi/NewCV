@@ -2,11 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Frontend CV (Port 3000)",
+      "name": "Frontend CV (Port 3001)",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"
     }
