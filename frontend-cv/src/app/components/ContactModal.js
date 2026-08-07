@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import iziToast from "izitoast";
 import "izitoast/dist/css/iziToast.min.css";
 
 const COUNTRY_CODES = [
@@ -213,7 +212,8 @@ export default function ContactModal({ isOpen, initialPurpose = "Contract / Proj
   const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
 
   const triggerError = (msg) => {
-    if (typeof window !== "undefined" && iziToast) {
+    if (typeof window !== "undefined") {
+      const iziToast = require("izitoast");
       iziToast.error({
         title: "Peringatan",
         message: msg,
@@ -235,7 +235,8 @@ export default function ContactModal({ isOpen, initialPurpose = "Contract / Proj
   };
 
   const showSuccessToast = (msg) => {
-    if (typeof window !== "undefined" && iziToast) {
+    if (typeof window !== "undefined") {
+      const iziToast = require("izitoast");
       iziToast.success({
         title: "Berhasil!",
         message: msg,
