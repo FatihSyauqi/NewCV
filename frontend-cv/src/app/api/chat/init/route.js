@@ -71,17 +71,24 @@ async function ensureTablesAndColumns() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
+  // Safely check and add missing columns without throwing ER_DUP_FIELDNAME
+  try {
+    const columns = await query(
+      `SELECT COLUMN_NAME FROM information_schema.COLUMNS 
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'chat_sessions'`
+    );
 
+    const columnNames = (columns || []).map((c) => (c.COLUMN_NAME || c.column_name || "").toLowerCase());
 
-  // Safely add columns if missing in existing tables
-  try {
-    await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`ip_address\` varchar(45) DEFAULT NULL AFTER \`phone_number\``);
-  } catch (e) {}
-  try {
-    await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`visitor_device_id\` varchar(64) DEFAULT NULL AFTER \`ip_address\``);
-  } catch (e) {}
-  try {
-    await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`closed_by\` varchar(20) DEFAULT NULL AFTER \`status\``);
+    if (!columnNames.includes("ip_address")) {
+      await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`ip_address\` varchar(45) DEFAULT NULL AFTER \`phone_number\``);
+    }
+    if (!columnNames.includes("visitor_device_id")) {
+      await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`visitor_device_id\` varchar(64) DEFAULT NULL AFTER \`ip_address\``);
+    }
+    if (!columnNames.includes("closed_by")) {
+      await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`closed_by\` varchar(20) DEFAULT NULL AFTER \`status\``);
+    }
   } catch (e) {}
 }
 
