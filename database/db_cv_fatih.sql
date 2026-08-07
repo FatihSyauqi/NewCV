@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 07, 2026 at 05:56 AM
+-- Generation Time: Aug 07, 2026 at 09:54 AM
 -- Server version: 10.4.18-MariaDB
 -- PHP Version: 7.3.28
 
@@ -107,7 +107,7 @@ CREATE TABLE `chat_admin_status` (
 --
 
 INSERT INTO `chat_admin_status` (`id`, `last_seen`) VALUES
-(1, '2026-08-07 03:56:44');
+(1, '2026-08-07 07:54:16');
 
 -- --------------------------------------------------------
 
@@ -142,32 +142,6 @@ CREATE TABLE `chat_messages` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
---
--- Dumping data for table `chat_messages`
---
-
-INSERT INTO `chat_messages` (`id`, `session_id`, `sender_type`, `sender_name`, `message_html`, `attachment_url`, `attachment_name`, `attachment_size`, `is_read`, `created_at`) VALUES
-(26, 4, 'user', 'Arif Hidayat', '2dwdwd', NULL, NULL, NULL, 0, '2026-08-07 03:16:44'),
-(27, 4, 'admin', 'Fatih Syauqi (Admin)', 'wdwd', NULL, NULL, NULL, 0, '2026-08-07 03:16:48'),
-(28, 4, 'admin', 'Fatih Syauqi (Admin)', 'fwfwd', NULL, NULL, NULL, 0, '2026-08-07 03:16:49'),
-(29, 4, 'admin', 'Fatih Syauqi (Admin)', 'qsqddw', NULL, NULL, NULL, 0, '2026-08-07 03:16:51'),
-(30, 4, 'admin', 'Fatih Syauqi (Admin)', 'Halo', NULL, NULL, NULL, 0, '2026-08-07 03:17:03'),
-(31, 4, 'admin', 'Fatih Syauqi (Admin)', 'Ini Fatih', NULL, NULL, NULL, 0, '2026-08-07 03:17:15'),
-(32, 4, 'admin', 'Fatih Syauqi (Admin)', 'Halo', NULL, NULL, NULL, 0, '2026-08-07 03:18:13'),
-(33, 4, 'user', 'Arif Hidayat', 'ardi', NULL, NULL, NULL, 0, '2026-08-07 03:18:22'),
-(34, 4, 'admin', 'Fatih Syauqi (Admin)', 'ya', NULL, NULL, NULL, 0, '2026-08-07 03:18:33'),
-(35, 4, 'admin', 'System Notice', '<div class=\"text-center text-muted small py-1\"><i class=\"bi bi-info-circle me-1\"></i> Sesi obrolan ini diakhiri oleh Pengunjung.</div>', NULL, NULL, NULL, 1, '2026-08-07 03:18:49'),
-(36, 4, 'admin', 'System Notice', '<div class=\"text-center text-success small py-1\"><i class=\"bi bi-unlock-fill me-1\"></i> Sesi percakapan dibuka kembali oleh Admin.</div>', NULL, NULL, NULL, 1, '2026-08-07 03:19:04'),
-(37, 4, 'user', 'Arif Hidayat', '', '/uploads/chat/gemini_generated_image_k1iwg7k1iwg7k1iw-d885.png', 'Gemini_Generated_Image_k1iwg7k1iwg7k1iw.png', 5936697, 0, '2026-08-07 03:19:23'),
-(38, 5, 'user', 'FATIH SYAUQI', 'w', NULL, NULL, NULL, 0, '2026-08-07 03:48:38'),
-(39, 5, 'admin', 'Fatih Syauqi (Admin)', 'Ya', NULL, NULL, NULL, 0, '2026-08-07 03:49:15'),
-(40, 5, 'user', 'FATIH SYAUQI', 'tolong', NULL, NULL, NULL, 0, '2026-08-07 03:49:25'),
-(41, 5, 'user', 'FATIH SYAUQI', 'good', NULL, NULL, NULL, 0, '2026-08-07 03:49:36'),
-(42, 5, 'user', 'FATIH SYAUQI', 'wey', NULL, NULL, NULL, 0, '2026-08-07 03:50:15'),
-(43, 5, 'admin', 'Fatih Syauqi (Admin)', 'nice', NULL, NULL, NULL, 0, '2026-08-07 03:50:20'),
-(44, 5, 'user', 'FATIH SYAUQI', 'tih', NULL, NULL, NULL, 0, '2026-08-07 03:50:28'),
-(45, 5, 'user', 'FATIH SYAUQI', 'apa', NULL, NULL, NULL, 0, '2026-08-07 03:55:23');
-
 -- --------------------------------------------------------
 
 --
@@ -188,7 +162,9 @@ CREATE TABLE `chat_sessions` (
   `unread_user` int(11) DEFAULT 0,
   `unread_admin` int(11) DEFAULT 0,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `user_typing_at` timestamp NULL DEFAULT NULL,
+  `admin_typing_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
@@ -525,19 +501,19 @@ ALTER TABLE `certificates`
 -- AUTO_INCREMENT for table `chat_blocked_entities`
 --
 ALTER TABLE `chat_blocked_entities`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `chat_messages`
 --
 ALTER TABLE `chat_messages`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `chat_sessions`
 --
 ALTER TABLE `chat_sessions`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `contact_inquiries`
