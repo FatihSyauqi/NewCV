@@ -2,6 +2,8 @@ import { query } from "@/lib/db";
 import { sanitizeHtml } from "@/lib/sanitizer";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const getClientIp = (request) => {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();

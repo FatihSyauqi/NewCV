@@ -3,6 +3,8 @@ import { sanitizeHtml } from "@/lib/sanitizer";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 const getClientIp = (request) => {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
@@ -69,20 +71,35 @@ async function ensureTablesAndColumns() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
-  // Migrate and Cleanup old non-prefixed / redundant tables
+  // Migrate and Cleanup old non-prefixed / redundant tables safely
   try {
-    await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT type, value, reason, created_at FROM \`blocked_entities\``);
-    await query(`DROP TABLE IF EXISTS \`blocked_entities\``);
+    const checkEntities = await query(`SHOW TABLES LIKE 'blocked_entities'`);
+    if (checkEntities && checkEntities.length > 0) {
+      await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT type, value, reason, created_at FROM \`blocked_entities\``);
+      await query(`DROP TABLE IF EXISTS \`blocked_entities\``);
+    }
   } catch (e) {}
+
   try {
-    await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT 'ip', ip_address, reason, created_at FROM \`blocked_ips\``);
-    await query(`DROP TABLE IF EXISTS \`blocked_ips\``);
+    const checkIps = await query(`SHOW TABLES LIKE 'blocked_ips'`);
+    if (checkIps && checkIps.length > 0) {
+      await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT 'ip', ip_address, reason, created_at FROM \`blocked_ips\``);
+      await query(`DROP TABLE IF EXISTS \`blocked_ips\``);
+    }
   } catch (e) {}
+
   try {
-    await query(`DROP TABLE IF EXISTS \`admin_status\``);
+    const checkAdmin = await query(`SHOW TABLES LIKE 'admin_status'`);
+    if (checkAdmin && checkAdmin.length > 0) {
+      await query(`DROP TABLE IF EXISTS \`admin_status\``);
+    }
   } catch (e) {}
+
   try {
-    await query(`DROP TABLE IF EXISTS \`chat_settings\``);
+    const checkSettings = await query(`SHOW TABLES LIKE 'chat_settings'`);
+    if (checkSettings && checkSettings.length > 0) {
+      await query(`DROP TABLE IF EXISTS \`chat_settings\``);
+    }
   } catch (e) {}
 
   // Safely add columns if missing in existing tables

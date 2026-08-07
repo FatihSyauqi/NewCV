@@ -82,7 +82,7 @@ export default function LiveChatClient() {
   // Fetch all chat sessions periodically (also acts as Admin Online Heartbeat)
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch("/AdminFSyauqi/api/chat/sessions");
+      const res = await fetch("/api/chat/sessions");
       if (!res.ok) return;
       const data = await res.json();
       setSessions(data.sessions || []);
@@ -107,7 +107,7 @@ export default function LiveChatClient() {
   const fetchMessages = useCallback(async (sessionId) => {
     if (!sessionId) return;
     try {
-      const res = await fetch(`/AdminFSyauqi/api/chat/messages?session_id=${sessionId}`);
+      const res = await fetch(`/api/chat/messages?session_id=${sessionId}`);
       if (!res.ok) return;
       const data = await res.json();
       const newMsgs = data.messages || [];
@@ -229,7 +229,7 @@ export default function LiveChatClient() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/AdminFSyauqi/api/chat/upload", {
+      const res = await fetch("/api/chat/upload", {
         method: "POST",
         body: formData
       });
@@ -318,7 +318,7 @@ export default function LiveChatClient() {
         attachment_size: attachment?.size || null
       };
 
-      const res = await fetch("/AdminFSyauqi/api/chat/messages", {
+      const res = await fetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -352,7 +352,7 @@ export default function LiveChatClient() {
     if (!activeSession) return;
     const newStatus = activeSession.status === "active" ? "closed" : "active";
     try {
-      const res = await fetch("/AdminFSyauqi/api/chat/sessions", {
+      const res = await fetch("/api/chat/sessions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: activeSession.id, status: newStatus })
@@ -374,7 +374,7 @@ export default function LiveChatClient() {
     }
 
     try {
-      const res = await fetch("/AdminFSyauqi/api/chat/sessions", {
+      const res = await fetch("/api/chat/sessions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: activeSession.id, action: "block_user" })
@@ -398,7 +398,7 @@ export default function LiveChatClient() {
     }
 
     try {
-      const res = await fetch("/AdminFSyauqi/api/chat/sessions", {
+      const res = await fetch("/api/chat/sessions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: activeSession.id, action: "unblock_user" })
@@ -434,8 +434,7 @@ export default function LiveChatClient() {
 
   const getAttachmentUrl = (url) => {
     if (!url) return "#";
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
-    return url.startsWith("/AdminFSyauqi") ? url : `/AdminFSyauqi${url}`;
+    return url;
   };
 
   return (
@@ -646,7 +645,7 @@ export default function LiveChatClient() {
                   onScroll={handleChatScroll}
                   className="p-3 flex-grow-1 overflow-y-auto"
                   style={{
-                    backgroundImage: "linear-gradient(rgba(248, 250, 252, 0.90), rgba(248, 250, 252, 0.90)), url('/AdminFSyauqi/images/tech-doodles-bg.png'), url('/images/tech-doodles-bg.png')",
+                    backgroundImage: "linear-gradient(rgba(248, 250, 252, 0.90), rgba(248, 250, 252, 0.90)), url('/images/tech-doodles-bg.png')",
                     backgroundSize: "cover",
                     backgroundPosition: "center"
                   }}

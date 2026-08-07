@@ -1,6 +1,8 @@
 import { query } from "@/lib/db";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     // Auto-create chat tables if not exist
@@ -12,6 +14,7 @@ export async function GET() {
         \`email\` varchar(100) NOT NULL,
         \`phone_number\` varchar(50) NOT NULL,
         \`ip_address\` varchar(45) DEFAULT NULL,
+        \`visitor_device_id\` varchar(64) DEFAULT NULL,
         \`initial_message\` text DEFAULT NULL,
         \`status\` varchar(20) DEFAULT 'active',
         \`closed_by\` varchar(20) DEFAULT NULL,
@@ -60,20 +63,35 @@ export async function GET() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
-    // Migrate and Cleanup old non-prefixed / redundant tables
+    // Migrate and Cleanup old non-prefixed / redundant tables safely
     try {
-      await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT type, value, reason, created_at FROM \`blocked_entities\``);
-      await query(`DROP TABLE IF EXISTS \`blocked_entities\``);
+      const checkEntities = await query(`SHOW TABLES LIKE 'blocked_entities'`);
+      if (checkEntities && checkEntities.length > 0) {
+        await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT type, value, reason, created_at FROM \`blocked_entities\``);
+        await query(`DROP TABLE IF EXISTS \`blocked_entities\``);
+      }
     } catch (e) {}
+
     try {
-      await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT 'ip', ip_address, reason, created_at FROM \`blocked_ips\``);
-      await query(`DROP TABLE IF EXISTS \`blocked_ips\``);
+      const checkIps = await query(`SHOW TABLES LIKE 'blocked_ips'`);
+      if (checkIps && checkIps.length > 0) {
+        await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT 'ip', ip_address, reason, created_at FROM \`blocked_ips\``);
+        await query(`DROP TABLE IF EXISTS \`blocked_ips\``);
+      }
     } catch (e) {}
+
     try {
-      await query(`DROP TABLE IF EXISTS \`admin_status\``);
+      const checkAdmin = await query(`SHOW TABLES LIKE 'admin_status'`);
+      if (checkAdmin && checkAdmin.length > 0) {
+        await query(`DROP TABLE IF EXISTS \`admin_status\``);
+      }
     } catch (e) {}
+
     try {
-      await query(`DROP TABLE IF EXISTS \`chat_settings\``);
+      const checkSettings = await query(`SHOW TABLES LIKE 'chat_settings'`);
+      if (checkSettings && checkSettings.length > 0) {
+        await query(`DROP TABLE IF EXISTS \`chat_settings\``);
+      }
     } catch (e) {}
 
     // Record Admin Online Heartbeat
