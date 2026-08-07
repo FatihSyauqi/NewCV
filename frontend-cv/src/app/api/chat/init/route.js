@@ -71,36 +71,7 @@ async function ensureTablesAndColumns() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
-  // Migrate and Cleanup old non-prefixed / redundant tables safely
-  try {
-    const checkEntities = await query(`SHOW TABLES LIKE 'blocked_entities'`);
-    if (checkEntities && checkEntities.length > 0) {
-      await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT type, value, reason, created_at FROM \`blocked_entities\``);
-      await query(`DROP TABLE IF EXISTS \`blocked_entities\``);
-    }
-  } catch (e) {}
 
-  try {
-    const checkIps = await query(`SHOW TABLES LIKE 'blocked_ips'`);
-    if (checkIps && checkIps.length > 0) {
-      await query(`INSERT IGNORE INTO \`chat_blocked_entities\` (type, value, reason, created_at) SELECT 'ip', ip_address, reason, created_at FROM \`blocked_ips\``);
-      await query(`DROP TABLE IF EXISTS \`blocked_ips\``);
-    }
-  } catch (e) {}
-
-  try {
-    const checkAdmin = await query(`SHOW TABLES LIKE 'admin_status'`);
-    if (checkAdmin && checkAdmin.length > 0) {
-      await query(`DROP TABLE IF EXISTS \`admin_status\``);
-    }
-  } catch (e) {}
-
-  try {
-    const checkSettings = await query(`SHOW TABLES LIKE 'chat_settings'`);
-    if (checkSettings && checkSettings.length > 0) {
-      await query(`DROP TABLE IF EXISTS \`chat_settings\``);
-    }
-  } catch (e) {}
 
   // Safely add columns if missing in existing tables
   try {
