@@ -14,6 +14,17 @@ export default function LiveChatClient() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Dynamic API URL Helper (Handles basePath '/AdminFSyauqi' dynamically in dev and prod)
+  const getApiUrl = (path) => {
+    if (typeof window !== "undefined") {
+      const isBaseAdmin = window.location.pathname.includes("/AdminFSyauqi");
+      if (isBaseAdmin && !path.startsWith("/AdminFSyauqi")) {
+        return `/AdminFSyauqi${path}`;
+      }
+    }
+    return path;
+  };
+
   // Message compose state, attachment caption & MS Teams Quoted Messages
   const [messageHtml, setMessageHtml] = useState("");
   const [attachment, setAttachment] = useState(null);
@@ -82,19 +93,20 @@ export default function LiveChatClient() {
   // Fetch all chat sessions periodically (also acts as Admin Online Heartbeat)
   const fetchSessions = useCallback(async () => {
     try {
-      const res = await fetch("/api/chat/sessions");
-      if (!res.ok) return;
+      const res = await fetch(getApiUrl("/api/chat/sessions"));
       const data = await res.json();
-      setSessions(data.sessions || []);
+      if (Array.isArray(data.sessions)) {
+        setSessions(data.sessions);
 
-      const totalUnread = data.totalUnread || 0;
-      if (prevUnreadRef.current !== undefined && totalUnread > prevUnreadRef.current) {
-        playNotificationSound();
-      }
-      prevUnreadRef.current = totalUnread;
+        const totalUnread = data.totalUnread || 0;
+        if (prevUnreadRef.current !== undefined && totalUnread > prevUnreadRef.current) {
+          playNotificationSound();
+        }
+        prevUnreadRef.current = totalUnread;
 
-      if (!activeSessionId && data.sessions && data.sessions.length > 0) {
-        setActiveSessionId(data.sessions[0].id);
+        if (!activeSessionId && data.sessions.length > 0) {
+          setActiveSessionId(data.sessions[0].id);
+        }
       }
     } catch (err) {
       console.error("Fetch sessions error:", err);
@@ -107,7 +119,7 @@ export default function LiveChatClient() {
   const fetchMessages = useCallback(async (sessionId) => {
     if (!sessionId) return;
     try {
-      const res = await fetch(`/api/chat/messages?session_id=${sessionId}`);
+      const res = await fetch(getApiUrl(`/api/chat/messages?session_id=${sessionId}`));
       if (!res.ok) return;
       const data = await res.json();
       const newMsgs = data.messages || [];
@@ -229,7 +241,7 @@ export default function LiveChatClient() {
     formData.append("file", file);
 
     try {
-      const res = await fetch("/api/chat/upload", {
+      const res = await fetch(getApiUrl("/api/chat/upload"), {
         method: "POST",
         body: formData
       });
@@ -318,7 +330,7 @@ export default function LiveChatClient() {
         attachment_size: attachment?.size || null
       };
 
-      const res = await fetch("/api/chat/messages", {
+      const res = await fetch(getApiUrl("/api/chat/messages"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -352,7 +364,7 @@ export default function LiveChatClient() {
     if (!activeSession) return;
     const newStatus = activeSession.status === "active" ? "closed" : "active";
     try {
-      const res = await fetch("/api/chat/sessions", {
+      const res = await fetch(getApiUrl("/api/chat/sessions"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: activeSession.id, status: newStatus })
@@ -374,7 +386,7 @@ export default function LiveChatClient() {
     }
 
     try {
-      const res = await fetch("/api/chat/sessions", {
+      const res = await fetch(getApiUrl("/api/chat/sessions"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: activeSession.id, action: "block_user" })
@@ -398,7 +410,7 @@ export default function LiveChatClient() {
     }
 
     try {
-      const res = await fetch("/api/chat/sessions", {
+      const res = await fetch(getApiUrl("/api/chat/sessions"), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: activeSession.id, action: "unblock_user" })

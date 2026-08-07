@@ -5,100 +5,100 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    // Auto-create chat tables if not exist
-    await query(`
-      CREATE TABLE IF NOT EXISTS \`chat_sessions\` (
-        \`id\` int(11) NOT NULL AUTO_INCREMENT,
-        \`session_token\` varchar(64) NOT NULL,
-        \`full_name\` varchar(100) NOT NULL,
-        \`email\` varchar(100) NOT NULL,
-        \`phone_number\` varchar(50) NOT NULL,
-        \`ip_address\` varchar(45) DEFAULT NULL,
-        \`visitor_device_id\` varchar(64) DEFAULT NULL,
-        \`initial_message\` text DEFAULT NULL,
-        \`status\` varchar(20) DEFAULT 'active',
-        \`closed_by\` varchar(20) DEFAULT NULL,
-        \`unread_user\` int(11) DEFAULT 0,
-        \`unread_admin\` int(11) DEFAULT 0,
-        \`created_at\` timestamp NOT NULL DEFAULT current_timestamp(),
-        \`updated_at\` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-        PRIMARY KEY (\`id\`),
-        UNIQUE KEY \`session_token\` (\`session_token\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    await query(`
-      CREATE TABLE IF NOT EXISTS \`chat_messages\` (
-        \`id\` int(11) NOT NULL AUTO_INCREMENT,
-        \`session_id\` int(11) NOT NULL,
-        \`sender_type\` enum('user','admin') NOT NULL,
-        \`sender_name\` varchar(100) NOT NULL,
-        \`message_html\` text NOT NULL,
-        \`attachment_url\` varchar(255) DEFAULT NULL,
-        \`attachment_name\` varchar(255) DEFAULT NULL,
-        \`attachment_size\` int(11) DEFAULT NULL,
-        \`is_read\` tinyint(1) DEFAULT 0,
-        \`created_at\` timestamp NOT NULL DEFAULT current_timestamp(),
-        PRIMARY KEY (\`id\`),
-        KEY \`session_id\` (\`session_id\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    await query(`
-      CREATE TABLE IF NOT EXISTS \`chat_blocked_entities\` (
-        \`id\` int(11) NOT NULL AUTO_INCREMENT,
-        \`type\` enum('ip','email','phone') NOT NULL,
-        \`value\` varchar(150) NOT NULL,
-        \`reason\` varchar(255) DEFAULT 'Spam/Abuse',
-        \`created_at\` timestamp NOT NULL DEFAULT current_timestamp(),
-        PRIMARY KEY (\`id\`),
-        UNIQUE KEY \`type_value\` (\`type\`, \`value\`)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    await query(`
-      CREATE TABLE IF NOT EXISTS \`chat_admin_status\` (
-        \`id\` int(11) NOT NULL PRIMARY KEY,
-        \`last_seen\` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-    `);
-
-    // Safely check and add missing columns without throwing ER_DUP_FIELDNAME
+    // 1. Auto-create chat tables if not exist
     try {
-      const columns = await query(
-        `SELECT COLUMN_NAME FROM information_schema.COLUMNS 
-         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'chat_sessions'`
-      );
+      await query(`
+        CREATE TABLE IF NOT EXISTS \`chat_sessions\` (
+          \`id\` int(11) NOT NULL AUTO_INCREMENT,
+          \`session_token\` varchar(64) NOT NULL,
+          \`full_name\` varchar(100) NOT NULL,
+          \`email\` varchar(100) NOT NULL,
+          \`phone_number\` varchar(50) NOT NULL,
+          \`ip_address\` varchar(45) DEFAULT NULL,
+          \`visitor_device_id\` varchar(64) DEFAULT NULL,
+          \`initial_message\` text DEFAULT NULL,
+          \`status\` varchar(20) DEFAULT 'active',
+          \`closed_by\` varchar(20) DEFAULT NULL,
+          \`unread_user\` int(11) DEFAULT 0,
+          \`unread_admin\` int(11) DEFAULT 0,
+          \`created_at\` timestamp NOT NULL DEFAULT current_timestamp(),
+          \`updated_at\` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`session_token\` (\`session_token\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
 
-      const columnNames = (columns || []).map((c) => (c.COLUMN_NAME || c.column_name || "").toLowerCase());
+      await query(`
+        CREATE TABLE IF NOT EXISTS \`chat_messages\` (
+          \`id\` int(11) NOT NULL AUTO_INCREMENT,
+          \`session_id\` int(11) NOT NULL,
+          \`sender_type\` enum('user','admin') NOT NULL,
+          \`sender_name\` varchar(100) NOT NULL,
+          \`message_html\` text NOT NULL,
+          \`attachment_url\` varchar(255) DEFAULT NULL,
+          \`attachment_name\` varchar(255) DEFAULT NULL,
+          \`attachment_size\` int(11) DEFAULT NULL,
+          \`is_read\` tinyint(1) DEFAULT 0,
+          \`created_at\` timestamp NOT NULL DEFAULT current_timestamp(),
+          PRIMARY KEY (\`id\`),
+          KEY \`session_id\` (\`session_id\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
 
-      if (!columnNames.includes("ip_address")) {
-        await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`ip_address\` varchar(45) DEFAULT NULL AFTER \`phone_number\``);
-      }
-      if (!columnNames.includes("visitor_device_id")) {
-        await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`visitor_device_id\` varchar(64) DEFAULT NULL AFTER \`ip_address\``);
-      }
-      if (!columnNames.includes("closed_by")) {
-        await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`closed_by\` varchar(20) DEFAULT NULL AFTER \`status\``);
-      }
-    } catch (e) {}
+      await query(`
+        CREATE TABLE IF NOT EXISTS \`chat_blocked_entities\` (
+          \`id\` int(11) NOT NULL AUTO_INCREMENT,
+          \`type\` enum('ip','email','phone') NOT NULL,
+          \`value\` varchar(150) NOT NULL,
+          \`reason\` varchar(255) DEFAULT 'Spam/Abuse',
+          \`created_at\` timestamp NOT NULL DEFAULT current_timestamp(),
+          PRIMARY KEY (\`id\`),
+          UNIQUE KEY \`type_value\` (\`type\`, \`value\`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
 
-    // Record Admin Online Heartbeat
-    await query(`INSERT INTO chat_admin_status (id, last_seen) VALUES (1, NOW()) ON DUPLICATE KEY UPDATE last_seen = NOW()`);
+      await query(`
+        CREATE TABLE IF NOT EXISTS \`chat_admin_status\` (
+          \`id\` int(11) NOT NULL PRIMARY KEY,
+          \`last_seen\` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      `);
+    } catch (tblErr) {
+      console.error("Table creation check warning:", tblErr);
+    }
 
-    const sessions = await query("SELECT * FROM chat_sessions ORDER BY updated_at DESC");
-    const totalUnreadRes = await query("SELECT SUM(unread_admin) as total_unread FROM chat_sessions");
-    const totalUnread = totalUnreadRes[0]?.total_unread || 0;
-    const blockedEntities = await query("SELECT * FROM chat_blocked_entities ORDER BY created_at DESC");
+    // 2. Record Admin Online Heartbeat
+    try {
+      await query(`INSERT INTO chat_admin_status (id, last_seen) VALUES (1, NOW()) ON DUPLICATE KEY UPDATE last_seen = NOW()`);
+    } catch (hbErr) {}
+
+    // 3. Query Sessions
+    const rawSessions = await query("SELECT * FROM chat_sessions ORDER BY updated_at DESC");
+    const sessions = Array.isArray(rawSessions) ? rawSessions : [];
+
+    let totalUnread = 0;
+    try {
+      const totalUnreadRes = await query("SELECT SUM(unread_admin) as total_unread FROM chat_sessions");
+      totalUnread = Number(totalUnreadRes?.[0]?.total_unread || 0);
+    } catch (uErr) {}
+
+    let blockedEntities = [];
+    try {
+      const rawBlocked = await query("SELECT * FROM chat_blocked_entities ORDER BY created_at DESC");
+      blockedEntities = Array.isArray(rawBlocked) ? rawBlocked : [];
+    } catch (bErr) {}
 
     return NextResponse.json({
       sessions,
-      totalUnread: Number(totalUnread),
+      totalUnread,
       blockedEntities
     });
   } catch (error) {
     console.error("GET admin chat sessions error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { sessions: [], totalUnread: 0, blockedEntities: [], error: error.message },
+      { status: 200 }
+    );
   }
 }
 

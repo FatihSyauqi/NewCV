@@ -9,6 +9,7 @@ export default function Navbar({ brandName }) {
   const [isContactOpen, setIsContactOpen] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
     const sections = ["home", "profile", "skills", "experience", "portfolio", "blog"];
     
     const handleScroll = () => {
