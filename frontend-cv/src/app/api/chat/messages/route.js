@@ -107,10 +107,25 @@ export async function GET(request) {
     if (session.unread_user > 0) {
       await query("UPDATE chat_sessions SET unread_user = 0 WHERE id = ?", [session.id]);
     }
+    // Mark admin messages as read
+    await query("UPDATE chat_messages SET is_read = 1 WHERE session_id = ? AND sender_type = 'admin' AND is_read = 0", [session.id]);
+
+    // Check if Admin is currently typing
+    let isAdminTyping = false;
+    try {
+      const typingRes = await query(
+        "SELECT TIMESTAMPDIFF(SECOND, admin_typing_at, NOW()) as diff FROM chat_sessions WHERE id = ?",
+        [session.id]
+      );
+      if (typingRes && typingRes[0] && typingRes[0].diff !== null) {
+        isAdminTyping = typingRes[0].diff <= 4;
+      }
+    } catch (e) {}
 
     return NextResponse.json({
       session,
-      messages
+      messages,
+      is_admin_typing: isAdminTyping
     });
   } catch (error) {
     console.error("GET chat messages error:", error);
@@ -135,13 +150,27 @@ export async function POST(request) {
 
     const session = sessions[0];
 
-    // Handle User action: Close Session
+    // Handle Visitor action: Re-open closed session
+    if (action === "reopen_session") {
+      await query(
+        "UPDATE chat_sessions SET status = 'active', closed_by = NULL, updated_at = NOW() WHERE id = ?",
+        [session.id]
+      );
+      return NextResponse.json({ success: true, message: "Sesi percakapan berhasil dibuka kembali." });
+    }
+
+    // Handle Visitor action: User Typing Heartbeat
+    if (action === "typing") {
+      await query("UPDATE chat_sessions SET user_typing_at = NOW() WHERE id = ?", [session.id]);
+      return NextResponse.json({ success: true });
+    }
+
+    // Handle Visitor action: Close Session
     if (action === "close_session") {
       await query(
         "UPDATE chat_sessions SET status = 'closed', closed_by = 'user', updated_at = NOW() WHERE id = ?",
         [session.id]
       );
-
       return NextResponse.json({ success: true, message: "Sesi obrolan berhasil diakhiri." });
     }
 
@@ -205,7 +234,7 @@ export async function POST(request) {
 
     // Increment unread_admin counter
     await query(
-      `UPDATE chat_sessions SET unread_admin = unread_admin + 1, updated_at = NOW() WHERE id = ?`,
+      `UPDATE chat_sessions SET unread_admin = unread_admin + 1, user_typing_at = NULL, updated_at = NOW() WHERE id = ?`,
       [session.id]
     );
 

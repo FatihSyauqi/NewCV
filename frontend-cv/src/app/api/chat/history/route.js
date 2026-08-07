@@ -18,7 +18,9 @@ export async function GET(request) {
     if (tokens.length > 0) {
       const placeholders = tokens.map(() => "?").join(",");
       sessions = await query(
-        `SELECT id, session_token, full_name, email, phone_number, initial_message, status, closed_by, created_at, updated_at
+        `SELECT id, session_token, full_name, email, phone_number, initial_message, status, closed_by, created_at, updated_at,
+                (SELECT message_html FROM chat_messages WHERE session_id = chat_sessions.id ORDER BY id DESC LIMIT 1) as last_message_html,
+                (SELECT attachment_name FROM chat_messages WHERE session_id = chat_sessions.id ORDER BY id DESC LIMIT 1) as last_attachment_name
          FROM chat_sessions 
          WHERE visitor_device_id = ? OR session_token IN (${placeholders})
          ORDER BY updated_at DESC`,
@@ -26,7 +28,9 @@ export async function GET(request) {
       );
     } else if (visitor_id) {
       sessions = await query(
-        `SELECT id, session_token, full_name, email, phone_number, initial_message, status, closed_by, created_at, updated_at
+        `SELECT id, session_token, full_name, email, phone_number, initial_message, status, closed_by, created_at, updated_at,
+                (SELECT message_html FROM chat_messages WHERE session_id = chat_sessions.id ORDER BY id DESC LIMIT 1) as last_message_html,
+                (SELECT attachment_name FROM chat_messages WHERE session_id = chat_sessions.id ORDER BY id DESC LIMIT 1) as last_attachment_name
          FROM chat_sessions 
          WHERE visitor_device_id = ?
          ORDER BY updated_at DESC`,

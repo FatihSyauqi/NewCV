@@ -4,6 +4,19 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import WysiwygEditor from "./WysiwygEditor";
 import { sanitizeHtml } from "@/lib/sanitizer";
 
+const getLastMessagePreview = (s) => {
+  if (s.last_message_html) {
+    // Strip nested blockquotes (quotes) first, then strip remaining HTML tags
+    const withoutBlockquotes = (s.last_message_html || "").replace(/<blockquote[^>]*>[\s\S]*?<\/blockquote>/gi, "");
+    const cleanText = withoutBlockquotes.replace(/<[^>]+>/g, "").trim();
+    if (cleanText) return cleanText;
+  }
+  if (s.last_attachment_name) {
+    return `📎 ${s.last_attachment_name}`;
+  }
+  return s.initial_message || s.full_name;
+};
+
 export default function LiveChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [sessionToken, setSessionToken] = useState(null);
@@ -18,6 +31,9 @@ export default function LiveChatWidget() {
   const [pastSessions, setPastSessions] = useState([]);
   const [showHistoryMenu, setShowHistoryMenu] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
+
+  // Typing Indicator state
+  const [isAdminTyping, setIsAdminTyping] = useState(false);
 
   // Pre-chat Form State
   const [initForm, setInitForm] = useState({
@@ -41,6 +57,7 @@ export default function LiveChatWidget() {
   const audioContextRef = useRef(null);
   const isUserScrolledUpRef = useRef(false);
   const prevMsgLengthRef = useRef(0);
+  const lastTypingSignalRef = useRef(0);
 
   // Initialize Visitor Device ID and load saved session tokens from localStorage
   useEffect(() => {
@@ -66,7 +83,7 @@ export default function LiveChatWidget() {
         tokens.unshift(token);
         localStorage.setItem("cv_chat_history_tokens", JSON.stringify(tokens));
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Fetch all past chat sessions performed on this device/browser
@@ -89,11 +106,13 @@ export default function LiveChatWidget() {
         const data = await res.json();
         setPastSessions(data.sessions || []);
 
-        // Auto-select latest active session if no session selected yet
-        if (!sessionToken && data.sessions && data.sessions.length > 0) {
-          const latest = data.sessions[0];
-          setSessionToken(latest.session_token);
-          localStorage.setItem("cv_chat_token", latest.session_token);
+        // Auto-select active session ONLY if cv_chat_token exists in localStorage
+        const savedToken = typeof window !== "undefined" ? localStorage.getItem("cv_chat_token") : null;
+        if (!sessionToken && savedToken && data.sessions && data.sessions.length > 0) {
+          const matched = data.sessions.find(s => s.session_token === savedToken);
+          if (matched) {
+            setSessionToken(matched.session_token);
+          }
         }
       }
     } catch (err) {
@@ -159,44 +178,119 @@ export default function LiveChatWidget() {
     };
   }, []);
 
-  // Poll for messages if active session exists
+  // ── Fetch messages helper (used by both WebSocket and fallback polling) ──
+  const fetchMessages = useCallback(async () => {
+    if (!sessionToken) return;
+    try {
+      const res = await fetch(`/api/chat/messages?token=${sessionToken}`);
+      if (!res.ok) {
+        if (res.status === 444) {
+          localStorage.removeItem("cv_chat_token");
+          setSessionToken(null);
+          setSessionData(null);
+        }
+        return;
+      }
+
+      const data = await res.json();
+      setSessionData(data.session);
+      setMessages(data.messages || []);
+      setIsAdminTyping(!!data.is_admin_typing);
+
+      const adminMsgs = (data.messages || []).filter(m => m.sender_type === 'admin');
+      const currentAdminCount = adminMsgs.length;
+
+      // Play chime sound when a new message arrives from admin
+      if (prevAdminMsgCountRef.current !== -1 && currentAdminCount > prevAdminMsgCountRef.current) {
+        playNotificationSound();
+      }
+      prevAdminMsgCountRef.current = currentAdminCount;
+    } catch (err) {
+      console.error("Poll chat error:", err);
+    }
+  }, [sessionToken, playNotificationSound]);
+
+  // Fetch on mount + 15s fallback polling (WebSocket handles real-time)
   useEffect(() => {
     if (!sessionToken) return;
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 15000);
+    return () => clearInterval(interval);
+  }, [sessionToken, fetchMessages]);
 
-    const fetchMessages = async () => {
+  // ── WebSocket connection for real-time push notifications ──────────────
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    if (!sessionToken) return;
+    let ws = null;
+    let reconnectTimer = null;
+    let mounted = true;
+
+    function connect() {
+      if (!mounted) return;
       try {
-        const res = await fetch(`/api/chat/messages?token=${sessionToken}`);
-        if (!res.ok) {
-          if (res.status === 444) {
-            localStorage.removeItem("cv_chat_token");
-            setSessionToken(null);
-            setSessionData(null);
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.host;
+        ws = new WebSocket(`${protocol}//${host}/ws-cv`);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          ws.send(JSON.stringify({ type: "subscribe", token: sessionToken }));
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "messages_update") {
+              fetchMessages();
+            } else if (msg.type === "admin_typing") {
+              setIsAdminTyping(!!msg.typing);
+            }
+            // ping — no action needed
+          } catch (_) { }
+        };
+
+        ws.onclose = () => {
+          if (mounted) {
+            // Auto-reconnect after 5 seconds
+            reconnectTimer = setTimeout(connect, 5000);
           }
-          return;
-        }
+        };
 
-        const data = await res.json();
-        setSessionData(data.session);
-        setMessages(data.messages || []);
-
-        const adminMsgs = (data.messages || []).filter(m => m.sender_type === 'admin');
-        const currentAdminCount = adminMsgs.length;
-
-        // Play chime sound when a new message arrives from admin
-        if (prevAdminMsgCountRef.current !== -1 && currentAdminCount > prevAdminMsgCountRef.current) {
-          playNotificationSound();
-        }
-        prevAdminMsgCountRef.current = currentAdminCount;
+        ws.onerror = () => {
+          ws.close();
+        };
       } catch (err) {
-        console.error("Poll chat error:", err);
+        // WebSocket not available — polling fallback is active
+        console.warn("[ws-cv] WebSocket not available, using polling fallback");
+      }
+    }
+
+    connect();
+
+    return () => {
+      mounted = false;
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+  }, [sessionToken, fetchMessages]);
+
+  // Alert confirmation when trying to close tab while writing a message
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      const cleanText = (messageHtml || "").replace(/<[^>]+>/g, "").trim();
+      if (cleanText.length > 0) {
+        e.preventDefault();
+        e.returnValue = "Pesan Anda belum terkirim. Apakah Anda yakin ingin meninggalkan halaman?";
+        return e.returnValue;
       }
     };
-
-    fetchMessages();
-    const interval = setInterval(fetchMessages, 3000);
-
-    return () => clearInterval(interval);
-  }, [sessionToken, playNotificationSound]);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [messageHtml]);
 
   // Track user scroll position in chat container
   const handleChatScroll = () => {
@@ -228,10 +322,26 @@ export default function LiveChatWidget() {
     }
   }, [isOpen]);
 
+  // Handle Visitor typing signal heartbeat
+  const handleUserTypingSignal = () => {
+    if (!sessionToken) return;
+    const now = Date.now();
+    if (now - lastTypingSignalRef.current > 2000) {
+      lastTypingSignalRef.current = now;
+      fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_token: sessionToken, action: "typing" })
+      }).catch(() => { });
+    }
+  };
+
   // Add a message to MS Teams Quote Reply list
   const handleQuoteMessage = (msg) => {
     if (quotedMessages.some((q) => q.id === msg.id)) return;
-    const rawText = (msg.message_html || "").replace(/<[^>]+>/g, "").trim();
+    // Strip nested blockquotes (and their inner text) first, then strip remaining HTML tags
+    const withoutBlockquotes = (msg.message_html || "").replace(/<blockquote[^>]*>[\s\S]*?<\/blockquote>/gi, "");
+    const rawText = withoutBlockquotes.replace(/<[^>]+>/g, "").trim();
     const snippet = rawText || msg.attachment_name || "Attachment";
 
     setQuotedMessages((prev) => [
@@ -257,12 +367,24 @@ export default function LiveChatWidget() {
 
     try {
       const vid = visitorDeviceId || localStorage.getItem("cv_visitor_id");
+
+      // Resolve Public IP via client-side API fallback
+      let clientPublicIp = null;
+      try {
+        const ipRes = await fetch("https://api.ipify.org?format=json", { signal: AbortSignal.timeout(2000) });
+        if (ipRes.ok) {
+          const ipData = await ipRes.json();
+          clientPublicIp = ipData.ip;
+        }
+      } catch (ipErr) { }
+
       const res = await fetch("/api/chat/init", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...initForm,
-          visitor_device_id: vid
+          visitor_device_id: vid,
+          client_public_ip: clientPublicIp
         })
       });
 
@@ -386,6 +508,23 @@ export default function LiveChatWidget() {
       }
       const finalMessageHtml = quoteHtml + contentBody;
 
+      // Optimistic UI update: Push temp message with sending = true
+      const tempId = "temp_" + Date.now();
+      const tempMsg = {
+        id: tempId,
+        session_id: sessionData?.id || 0,
+        sender_type: "user",
+        sender_name: sessionData?.full_name || "Visitor",
+        message_html: finalMessageHtml,
+        attachment_url: attachment?.url || null,
+        attachment_name: attachment?.name || null,
+        attachment_size: attachment?.size || null,
+        is_read: 0,
+        sending: true,
+        created_at: new Date().toISOString()
+      };
+      setMessages((prev) => [...prev, tempMsg]);
+
       const payload = {
         session_token: sessionToken,
         message_html: finalMessageHtml,
@@ -457,14 +596,33 @@ export default function LiveChatWidget() {
     }
   };
 
+  // Handle Re-open Session from Visitor (If closed by user)
+  const handleReopenSession = async () => {
+    try {
+      const res = await fetch("/api/chat/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_token: sessionToken, action: "reopen_session" })
+      });
+      if (res.ok) {
+        setSessionData((prev) => prev ? { ...prev, status: "active", closed_by: null } : null);
+        fetchUserChatHistory();
+      }
+    } catch (err) {
+      console.error("Reopen session error:", err);
+    }
+  };
+
   // Open Form to Start New Chat Session
   const handleStartNewSession = () => {
+    localStorage.removeItem("cv_chat_token");
     setSessionToken(null);
     setSessionData(null);
     setMessages([]);
     setQuotedMessages([]);
     setShowHistoryMenu(false);
     setInitForm({ full_name: "", email: "", phone_number: "", initial_message: "" });
+    setInitError("");
   };
 
   const isImageFile = (url) => {
@@ -488,20 +646,21 @@ export default function LiveChatWidget() {
       {/* ── Chat Popup Window ── */}
       {isOpen && (
         <div
-          className="card border-0 shadow-lg rounded-4 overflow-hidden mb-3 animate-fade-in position-relative"
+          className="card border-0 shadow-lg rounded-4 overflow-hidden position-relative animate-fade-in"
+          style={{
+            width: "380px",
+            height: "560px",
+            maxWidth: "92vw",
+            maxHeight: "85vh",
+            display: "flex",
+            flexDirection: "column",
+            marginBottom: "12px",
+            backgroundColor: "#ffffff",
+            boxShadow: "0 10px 40px rgba(0,0,0,0.15)"
+          }}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          style={{
-            width: "430px",
-            maxWidth: "calc(100vw - 32px)",
-            height: "590px",
-            maxHeight: "calc(100vh - 100px)",
-            display: "flex",
-            flexDirection: "column",
-            boxShadow: "0 20px 50px rgba(37, 99, 235, 0.22)",
-            border: "1px solid rgba(59, 130, 246, 0.2)"
-          }}
         >
           {/* ── DRAG & DROP OVERLAY ── */}
           {isDraggingFile && (
@@ -511,35 +670,50 @@ export default function LiveChatWidget() {
             >
               <i className="bi bi-cloud-arrow-up-fill display-3 mb-2 animate-bounce"></i>
               <h5 className="fw-bold mb-1">Lepaskan File di Sini</h5>
-              <p className="small mb-0 text-white-50">Maksimal 2 MB (Gambar PNG/JPG, PDF, Word)</p>
+              <p className="small mb-0 text-white-50 text-center">Maksimal 2 MB (Gambar PNG/JPG/WEBP, PDF, Word)</p>
             </div>
           )}
-          {/* Header Soft Blue dengan Teks Kontras Tinggi */}
+
+          {/* Header Widget */}
           <div
-            className="p-3 text-white d-flex align-items-center justify-content-between"
+            className="p-3 text-white d-flex align-items-center justify-content-between shadow-xs"
             style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}
           >
-            <div className="d-flex align-items-center gap-3">
-              <div className="position-relative me-1">
+            <div className="d-flex align-items-center gap-3 me-2">
+              <div className="position-relative flex-shrink-0">
                 <div
-                  className="rounded-circle bg-warning text-dark fw-bold d-flex align-items-center justify-content-center shadow-xs"
-                  style={{ width: "42px", height: "42px", fontSize: "0.95rem" }}
+                  className="fw-bold rounded-circle d-flex align-items-center justify-content-center shadow-xs"
+                  style={{
+                    width: "40px",
+                    height: "40px",
+                    fontSize: "14px",
+                    backgroundColor: "#f59e0b",
+                    color: "#000000"
+                  }}
                 >
                   FS
                 </div>
                 <span
-                  className={`position-absolute bottom-0 end-0 border border-2 border-primary rounded-circle ${isSessionClosed || isSessionBlocked ? 'bg-secondary' : 'bg-success'}`}
-                  style={{ width: "12px", height: "12px" }}
+                  className="position-absolute bottom-0 end-0 rounded-circle"
+                  style={{
+                    width: "11px",
+                    height: "11px",
+                    backgroundColor: "#22c55e",
+                    border: "2px solid #2563eb"
+                  }}
+                  title="Admin Online"
                 ></span>
               </div>
               <div>
-                <h6 className="mb-0 fw-bold fs-6 text-white tracking-wide">Live Chat</h6>
-                <small className="text-white d-block fw-semibold" style={{ fontSize: "11px", color: "#ffffff", opacity: 0.95 }}>
+                <h6 className="mb-0 fw-bold text-white" style={{ fontSize: "15px", lineHeight: "1.2" }}>
+                  Live Chat
+                </h6>
+                <small className="text-white fw-medium d-block" style={{ fontSize: "11px", opacity: 0.92, lineHeight: "1.3" }}>
                   Fatih Syauqi • Senior Software Engineer
                 </small>
               </div>
             </div>
-            <div className="d-flex align-items-center gap-1">
+            <div className="d-flex align-items-center gap-1 flex-shrink-0">
               {/* History Button */}
               <button
                 type="button"
@@ -607,16 +781,15 @@ export default function LiveChatWidget() {
                         <div
                           key={s.id}
                           onClick={() => handleSelectHistorySession(s)}
-                          className={`p-3 rounded-3 border transition-all cursor-pointer ${
-                            isCurrent
-                              ? "bg-white border-primary border-2 shadow-xs"
-                              : "bg-white border-slate-200 hover-border-primary"
-                          }`}
+                          className={`p-3 rounded-3 border transition-all cursor-pointer ${isCurrent
+                            ? "bg-white border-primary border-2 shadow-xs"
+                            : "bg-white border-slate-200 hover-border-primary"
+                            }`}
                           style={{ cursor: "pointer" }}
                         >
                           <div className="d-flex align-items-center justify-content-between mb-1">
                             <span className="fw-bold text-dark text-truncate" style={{ fontSize: "13px", maxWidth: "200px" }}>
-                              {s.initial_message || s.full_name}
+                              {getLastMessagePreview(s)}
                             </span>
                             <small className="text-muted" style={{ fontSize: "10px" }}>
                               {new Date(s.updated_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
@@ -627,13 +800,12 @@ export default function LiveChatWidget() {
                               {s.full_name} ({s.email})
                             </small>
                             <span
-                              className={`badge ${
-                                s.status === "active"
-                                  ? "bg-success-subtle text-success"
-                                  : s.status === "blocked"
+                              className={`badge ${s.status === "active"
+                                ? "bg-success-subtle text-success"
+                                : s.status === "blocked"
                                   ? "bg-danger-subtle text-danger"
                                   : "bg-secondary-subtle text-secondary"
-                              }`}
+                                }`}
                               style={{ fontSize: "10px" }}
                             >
                               {s.status === "active" ? "Aktif" : s.status === "blocked" ? "Diblokir" : "Tutup"}
@@ -648,7 +820,7 @@ export default function LiveChatWidget() {
 
               <button
                 type="button"
-                className="btn btn-sm btn-outline-secondary w-100 mt-3 rounded-pill"
+                className="btn btn-sm btn-outline-secondary w-100 mt-3 rounded-3"
                 onClick={() => setShowHistoryMenu(false)}
               >
                 Kembali ke Percakapan Saat Ini
@@ -673,7 +845,7 @@ export default function LiveChatWidget() {
                     </div>
                   )}
 
-                  <form id="chatInitForm" onSubmit={handleInitSubmit}>
+                  <form id="chatInitForm" onSubmit={handleInitSubmit} className="d-flex flex-column justify-content-between">
                     <div className="mb-2.5">
                       <label className="form-label small fw-semibold text-slate-700 mb-1" style={{ fontSize: "12px", color: "#334155" }}>
                         Nama Lengkap <span className="text-danger">*</span>
@@ -729,28 +901,27 @@ export default function LiveChatWidget() {
                         required
                       />
                     </div>
+
+                    <button
+                      type="submit"
+                      className="btn w-100 py-2.5 fw-semibold d-flex align-items-center justify-content-center gap-2 text-white border-0 shadow-sm mt-2"
+                      style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", borderRadius: "10px" }}
+                      disabled={loadingInit}
+                    >
+                      {loadingInit ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm" role="status"></span>
+                          <span>Memproses...</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-envelope-fill"></i>
+                          <span>Mulai Chat Sekarang</span>
+                        </>
+                      )}
+                    </button>
                   </form>
                 </div>
-
-                <button
-                  type="submit"
-                  form="chatInitForm"
-                  className="btn w-100 py-2.5 fw-semibold d-flex align-items-center justify-content-center gap-2 text-white border-0 shadow-sm"
-                  style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", borderRadius: "10px" }}
-                  disabled={loadingInit}
-                >
-                  {loadingInit ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm" role="status"></span>
-                      <span>Memproses...</span>
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-envelope-fill"></i>
-                      <span>Mulai Chat Sekarang</span>
-                    </>
-                  )}
-                </button>
               </div>
             ) : (
               /* ── STATE 2: Active Chat Interface (With Tech Doodle Background) ── */
@@ -780,12 +951,9 @@ export default function LiveChatWidget() {
                           key={msg.id}
                           className={`d-flex flex-column mb-3 position-relative group-chat-item ${isUser ? "align-items-end" : "align-items-start"}`}
                         >
-                          <div className="d-flex align-items-center gap-1.5 mb-1 px-1">
+                          <div className="d-flex align-items-center gap-2 mb-1 px-1">
                             <small className="fw-semibold text-slate-700" style={{ fontSize: "11px", color: "#475569" }}>
                               {msg.sender_name}
-                            </small>
-                            <small className="text-slate-500" style={{ fontSize: "10px", color: "#64748b" }}>
-                              • {new Date(msg.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                             </small>
                             {!isSessionClosed && !isSessionBlocked && (
                               <button
@@ -801,20 +969,32 @@ export default function LiveChatWidget() {
                             )}
                           </div>
 
-                          {/* White Background Bubble dengan Font Warna Hitam */}
+                          {/* WhatsApp Style Bubble with Font Warna Hitam */}
                           <div
-                            className="p-3 shadow-xs bg-white text-slate-800 border"
+                            className="shadow-xs border"
                             style={{
                               maxWidth: "88%",
                               fontSize: "0.92rem",
                               lineHeight: "1.5",
-                              background: "#ffffff",
+                              background: isUser ? "#d9fdd3" : "#ffffff",
                               color: "#1e293b",
-                              borderColor: "#e2e8f0",
+                              borderColor: isUser ? "#d9fdd3" : "#e2e8f0",
                               borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                              padding: "6px 10px 6px 12px",
+                              minWidth: "85px",
+                              display: "inline-block"
                             }}
                           >
+                            {/* Inject CSS override to display editor paragraphs inline inside chat bubbles */}
+                            <style dangerouslySetInnerHTML={{
+                              __html: `
+                              .message-rich-content, .message-rich-content p {
+                                display: inline !important;
+                                margin: 0 !important;
+                              }
+                            `}} />
+
                             {/* Rich Text Sanitized HTML Body */}
                             {cleanHtml && (
                               <div
@@ -826,7 +1006,7 @@ export default function LiveChatWidget() {
 
                             {/* Attachment Card */}
                             {msg.attachment_url && (
-                              <div className="mt-2 pt-2 border-top border-slate-200">
+                              <div className="mt-2 pt-2 border-top border-slate-200 d-block" style={{ display: "block" }}>
                                 {isImageFile(msg.attachment_url) ? (
                                   <div>
                                     <img
@@ -869,11 +1049,66 @@ export default function LiveChatWidget() {
                                 )}
                               </div>
                             )}
+
+                            {/* Bottom Right timestamp & flags */}
+                            <span
+                              className="d-inline-flex align-items-center gap-1 text-muted"
+                              style={{
+                                fontSize: "10px",
+                                color: "#667781",
+                                userSelect: "none",
+                                marginLeft: "8px",
+                                marginTop: "4px",
+                                float: "right",
+                                verticalAlign: "bottom"
+                              }}
+                            >
+                              <span>
+                                {new Date(msg.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                              {isUser && (
+                                <span className="d-inline-flex align-items-center" style={{ lineHeight: "1" }}>
+                                  {msg.sending ? (
+                                    <i className="bi bi-clock text-muted" style={{ fontSize: "9px" }} title="Menunggu terkirim..."></i>
+                                  ) : msg.is_read ? (
+                                    <i className="bi bi-check2-all text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Dibaca"></i>
+                                  ) : (
+                                    <i className="bi bi-check2 text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Terkirim"></i>
+                                  )}
+                                </span>
+                              )}
+                            </span>
                           </div>
                         </div>
                       );
                     })
                   )}
+
+                  {/* Typing Indicator Balloon when Admin is typing */}
+                  {isAdminTyping && (
+                    <div className="d-flex flex-column align-items-start mb-3 animate-fade-in">
+                      <small className="fw-semibold text-slate-500 mb-1 px-1" style={{ fontSize: "10px", color: "#64748b" }}>
+                        Fatih Syauqi (Admin)
+                      </small>
+                      <div
+                        className="p-2.5 px-3 bg-white text-slate-700 border shadow-xs d-flex align-items-center gap-2"
+                        style={{
+                          borderRadius: "18px 18px 18px 4px",
+                          fontSize: "0.85rem",
+                          background: "#ffffff",
+                          borderColor: "#e2e8f0"
+                        }}
+                      >
+                        <span className="fst-italic text-muted">sedang mengetik</span>
+                        <span className="d-inline-flex align-items-center gap-1 ms-1">
+                          <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: "6px", height: "6px", animationDuration: "0.6s" }}></span>
+                          <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: "6px", height: "6px", animationDuration: "0.8s" }}></span>
+                          <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: "6px", height: "6px", animationDuration: "1s" }}></span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -884,13 +1119,24 @@ export default function LiveChatWidget() {
                       <i className="bi bi-lock-fill text-primary me-1"></i>
                       Sesi obrolan ini telah diakhiri {sessionData?.closed_by === 'user' ? 'oleh Anda' : 'oleh Admin'}. Terima kasih!
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-primary rounded-pill px-4 fw-bold shadow-xs"
-                      onClick={handleStartNewSession}
-                    >
-                      <i className="bi bi-plus-circle me-1.5"></i> Mulai Percakapan Baru
-                    </button>
+                    <div className="d-flex align-items-center justify-content-center gap-2 flex-wrap">
+                      {sessionData?.closed_by === 'user' && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-success text-white rounded-pill px-3 fw-bold shadow-xs"
+                          onClick={handleReopenSession}
+                        >
+                          <i className="bi bi-unlock-fill me-1"></i> Buka Kembali Sesi Ini
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary rounded-pill px-3 fw-bold shadow-xs"
+                        onClick={handleStartNewSession}
+                      >
+                        <i className="bi bi-plus-circle me-1"></i> Percakapan Baru
+                      </button>
+                    </div>
                   </div>
                 ) : isSessionBlocked ? (
                   <div className="p-3 bg-danger-subtle border-top text-center shadow-xs">
@@ -914,7 +1160,7 @@ export default function LiveChatWidget() {
                       <div className="ms-teams-quote-preview-container mb-2 p-1.5 bg-slate-50 border rounded-3" style={{ maxHeight: "110px", overflowY: "auto", backgroundColor: "#f8fafc" }}>
                         <div className="d-flex align-items-center justify-content-between mb-1">
                           <small className="fw-bold text-primary" style={{ fontSize: "11px" }}>
-                            <i className="bi bi-quote me-1"></i> Membalas {quotedMessages.length} Pesan (MS Teams Mode)
+                            <i className="bi bi-quote me-1"></i> Membalas {quotedMessages.length} Pesan
                           </small>
                           <button
                             type="button"
@@ -925,7 +1171,7 @@ export default function LiveChatWidget() {
                         </div>
 
                         {quotedMessages.map((q) => (
-                          <div key={q.id} className="p-1.5 mb-1 bg-white border-start border-3 border-primary rounded-end shadow-2xs position-relative">
+                          <div key={q.id} className="py-1.5 ps-3 pe-2 mb-1 bg-white border-start border-3 border-primary rounded-end shadow-2xs position-relative">
                             <div className="d-flex align-items-center justify-content-between">
                               <small className="fw-semibold text-slate-700" style={{ fontSize: "11px" }}>
                                 {q.sender_name} <span className="text-muted fw-normal">({new Date(q.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })})</span>
@@ -948,12 +1194,12 @@ export default function LiveChatWidget() {
                     {attachment && (
                       <div className="bg-slate-100 p-2 mb-2 rounded-3 border shadow-2xs" style={{ backgroundColor: "#f1f5f9" }}>
                         <div className="d-flex align-items-center justify-content-between mb-1">
-                          <span className="text-truncate fw-semibold text-slate-700 me-2" style={{ maxWidth: "220px", fontSize: "12px" }}>
+                          <span className="text-truncate fw-semibold text-slate-700 me-2" style={{ maxWidth: "240px", fontSize: "12px" }}>
                             <i className="bi bi-paperclip me-1 text-primary"></i> {attachment.name} ({formatFileSize(attachment.size)})
                           </span>
                           <button
                             type="button"
-                            className="btn-close btn-close-xs"
+                            className="btn-close btn-close-xs ms-2"
                             onClick={() => { setAttachment(null); setAttachmentCaption(""); }}
                           ></button>
                         </div>
@@ -970,12 +1216,15 @@ export default function LiveChatWidget() {
 
                     <WysiwygEditor
                       value={messageHtml}
-                      onChange={setMessageHtml}
+                      onChange={(val) => {
+                        setMessageHtml(val);
+                        if (val.trim()) handleUserTypingSignal();
+                      }}
                       onSend={handleSendMessage}
                       placeholder="Ketik pesan Anda..."
                     />
 
-                    <div className="d-flex align-items-center justify-content-between mt-2.5">
+                    <div className="d-flex align-items-center justify-content-between mt-2">
                       <div>
                         <input
                           type="file"
@@ -986,30 +1235,34 @@ export default function LiveChatWidget() {
                         />
                         <button
                           type="button"
-                          className="btn btn-sm btn-light text-slate-600 border rounded-circle p-2 d-flex align-items-center justify-content-center"
-                          style={{ width: "36px", height: "36px" }}
+                          className="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 py-1 px-2.5"
                           onClick={() => fileInputRef.current?.click()}
                           disabled={uploadingFile}
-                          title="Lampirkan File / Gambar (PNG, JPG, PDF, DOC)"
                         >
                           {uploadingFile ? (
                             <span className="spinner-border spinner-border-sm" role="status"></span>
                           ) : (
-                            <i className="bi bi-paperclip fs-6"></i>
+                            <>
+                              <i className="bi bi-paperclip"></i>
+                              <span className="small">Lampiran</span>
+                            </>
                           )}
                         </button>
                       </div>
 
-                      {/* Kirim Button (Icon Envelope di kiri) */}
+                      {/* Kirim Button (Icon Envelope) */}
                       <button
                         type="button"
-                        className="btn btn-sm px-4 py-2 text-white fw-semibold border-0 rounded-pill d-flex align-items-center gap-2 shadow-sm"
+                        className="btn btn-sm px-3 py-1.5 text-white fw-semibold border-0 rounded-3 d-flex align-items-center gap-2 shadow-xs"
                         style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}
                         onClick={handleSendMessage}
                         disabled={sendingMessage || (!messageHtml.trim() && !attachment && quotedMessages.length === 0)}
                       >
                         {sendingMessage ? (
-                          <span className="spinner-border spinner-border-sm" role="status"></span>
+                          <>
+                            <span className="spinner-border spinner-border-sm" role="status"></span>
+                            <span>Kirim...</span>
+                          </>
                         ) : (
                           <>
                             <i className="bi bi-envelope-fill fs-6"></i>
@@ -1026,21 +1279,39 @@ export default function LiveChatWidget() {
         </div>
       )}
 
+      {/* ── Trigger Chat Floating Pill Button ── */}
+      {!isOpen && (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="btn text-white rounded-pill px-4 py-2.5 shadow-lg d-flex align-items-center gap-2 animate-bounce-slow"
+          style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", border: "2px solid #ffffff" }}
+        >
+          <i className="bi bi-chat-dots-fill fs-5"></i>
+          <span className="fw-bold">Live Chat</span>
+          {unreadCount > 0 && (
+            <span className="badge rounded-pill bg-danger ms-1">
+              {unreadCount}
+            </span>
+          )}
+        </button>
+      )}
+
       {/* ── File Preview Modal Popup ── */}
       {previewFile && (
         <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 10500 }}>
-          <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: "92%", maxWidth: "680px", maxHeight: "88vh" }}>
+          <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: "92%", maxWidth: "500px", maxHeight: "80vh" }}>
             <div className="p-3 text-white d-flex align-items-center justify-content-between" style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}>
               <h6 className="mb-0 text-truncate text-white fw-bold" style={{ maxWidth: "80%" }}>
                 <i className="bi bi-file-earmark-text me-2"></i> {previewFile.name}
               </h6>
               <button type="button" className="btn-close btn-close-white" onClick={() => setPreviewFile(null)}></button>
             </div>
-            <div className="p-3 bg-light overflow-y-auto d-flex align-items-center justify-content-center" style={{ minHeight: "320px", maxHeight: "calc(88vh - 120px)" }}>
+            <div className="p-3 bg-light overflow-y-auto d-flex align-items-center justify-content-center" style={{ minHeight: "260px", maxHeight: "calc(80vh - 120px)" }}>
               {isImageFile(previewFile.url) ? (
-                <img src={previewFile.url} alt={previewFile.name} className="img-fluid rounded shadow-sm" style={{ maxHeight: "460px", objectFit: "contain" }} />
+                <img src={previewFile.url} alt={previewFile.name} className="img-fluid rounded shadow-sm" style={{ maxHeight: "360px", objectFit: "contain" }} />
               ) : previewFile.url.endsWith(".pdf") ? (
-                <iframe src={previewFile.url} title={previewFile.name} width="100%" height="450px" className="border rounded" />
+                <iframe src={previewFile.url} title={previewFile.name} width="100%" height="350px" className="border rounded" />
               ) : (
                 <div className="text-center p-4">
                   <i className="bi bi-file-earmark-word-fill text-primary display-3 mb-3"></i>
@@ -1061,34 +1332,6 @@ export default function LiveChatWidget() {
           </div>
         </div>
       )}
-
-      {/* ── Fixed Floating Trigger Pill Button (Pojok Kanan Bawah) ── */}
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="btn rounded-pill shadow-lg d-flex align-items-center gap-2 px-3.5 py-2.5 transition-all text-white border-0"
-        style={{
-          background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-          boxShadow: "0 8px 24px rgba(59, 130, 246, 0.35)",
-          fontWeight: 600,
-          fontSize: "0.95rem",
-          letterSpacing: "0.3px",
-          height: "48px"
-        }}
-        aria-label="Open Live Chat"
-      >
-        <div className="position-relative d-flex align-items-center justify-content-center">
-          <i className={`bi ${isOpen ? "bi-x-lg fs-5" : "bi-chat-dots-fill fs-5"}`}></i>
-        </div>
-        <span>{isOpen ? "Tutup Chat" : "Live Chat"}</span>
-
-        {/* Unread Counter Badge */}
-        {!isOpen && unreadCount > 0 && (
-          <span className="badge rounded-pill bg-danger border border-light ms-1 px-2 py-1">
-            {unreadCount}
-          </span>
-        )}
-      </button>
     </div>
   );
 }

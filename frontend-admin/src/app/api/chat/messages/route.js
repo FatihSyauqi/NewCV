@@ -20,6 +20,8 @@ export async function GET(request) {
 
     // Reset unread_admin counter when Admin opens this session
     await query("UPDATE chat_sessions SET unread_admin = 0 WHERE id = ?", [sessionId]);
+    // Mark user messages as read
+    await query("UPDATE chat_messages SET is_read = 1 WHERE session_id = ? AND sender_type = 'user' AND is_read = 0", [sessionId]);
 
     return NextResponse.json({ messages });
   } catch (error) {

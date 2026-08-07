@@ -4,6 +4,34 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import WysiwygEditor from "@/app/components/WysiwygEditor";
 import { sanitizeHtml } from "@/lib/sanitizer";
 
+const AVATAR_COLORS = [
+  "#2563eb", "#059669", "#d97706", "#7c3aed", "#db2777",
+  "#008069", "#0284c7", "#4f46e5", "#ca8a04", "#e11d48"
+];
+
+const getAvatarColor = (name) => {
+  if (!name) return "#008069";
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % AVATAR_COLORS.length;
+  return AVATAR_COLORS[index];
+};
+
+const getLastMessagePreview = (session) => {
+  if (session.last_message_html) {
+    // Strip nested blockquotes (quotes) first, then strip remaining HTML tags
+    const withoutBlockquotes = (session.last_message_html || "").replace(/<blockquote[^>]*>[\s\S]*?<\/blockquote>/gi, "");
+    const cleanText = withoutBlockquotes.replace(/<[^>]+>/g, "").trim();
+    if (cleanText) return cleanText;
+  }
+  if (session.last_attachment_name) {
+    return `📎 ${session.last_attachment_name}`;
+  }
+  return session.initial_message || session.email;
+};
+
 export default function LiveChatClient() {
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
@@ -13,6 +41,11 @@ export default function LiveChatClient() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Responsiveness & Dropdown Action state
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [showActionDropdown, setShowActionDropdown] = useState(false);
+  const [showHeaderMenu, setShowHeaderMenu] = useState(false);
 
   // Dynamic API URL Helper (Handles basePath '/AdminFSyauqi' dynamically in dev and prod)
   const getApiUrl = (path) => {
@@ -39,6 +72,7 @@ export default function LiveChatClient() {
   const prevUnreadRef = useRef(0);
   const isUserScrolledUpRef = useRef(false);
   const prevMsgLengthRef = useRef(0);
+  const lastTypingSignalRef = useRef(0);
 
   const prevUserMsgCountRef = useRef(-1);
 
@@ -139,17 +173,108 @@ export default function LiveChatClient() {
 
   useEffect(() => {
     fetchSessions();
-    const interval = setInterval(fetchSessions, 3000);
+    // Fallback polling — 15s (WebSocket handles real-time; this is safety net)
+    const interval = setInterval(fetchSessions, 15000);
     return () => clearInterval(interval);
   }, [fetchSessions]);
 
   useEffect(() => {
     if (activeSessionId) {
       fetchMessages(activeSessionId);
-      const interval = setInterval(() => fetchMessages(activeSessionId), 3000);
+      // Fallback polling — 15s
+      const interval = setInterval(() => fetchMessages(activeSessionId), 15000);
       return () => clearInterval(interval);
     }
   }, [activeSessionId, fetchMessages]);
+
+  // ── WebSocket connection for real-time push notifications ──────────────
+  const wsRef = useRef(null);
+  const activeSessionIdRef = useRef(activeSessionId);
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
+
+  useEffect(() => {
+    let ws = null;
+    let reconnectTimer = null;
+    let mounted = true;
+
+    function connect() {
+      if (!mounted) return;
+      try {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const host = window.location.host;
+        ws = new WebSocket(`${protocol}//${host}/ws-admin`);
+        wsRef.current = ws;
+
+        ws.onopen = () => {
+          // Subscribe current session immediately after connect
+          if (activeSessionIdRef.current) {
+            ws.send(JSON.stringify({ type: "subscribe_session", sessionId: activeSessionIdRef.current }));
+          }
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "sessions_update") {
+              fetchSessions();
+            } else if (msg.type === "messages_update") {
+              const sid = msg.sessionId || activeSessionIdRef.current;
+              if (sid) fetchMessages(sid);
+            }
+            // ping — no action needed
+          } catch (_) {}
+        };
+
+        ws.onclose = () => {
+          if (mounted) {
+            // Auto-reconnect after 5 seconds on unexpected close
+            reconnectTimer = setTimeout(connect, 5000);
+          }
+        };
+
+        ws.onerror = () => {
+          ws.close();
+        };
+      } catch (err) {
+        // WebSocket not available (SSR or blocked) — fall back to polling only
+        console.warn("[ws] WebSocket not available, using polling fallback");
+      }
+    }
+
+    connect();
+
+    return () => {
+      mounted = false;
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close();
+    };
+  }, [fetchSessions, fetchMessages]);
+
+  // Re-subscribe whenever active session changes
+  useEffect(() => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN && activeSessionId) {
+      ws.send(JSON.stringify({ type: "subscribe_session", sessionId: activeSessionId }));
+    }
+  }, [activeSessionId]);
+
+  // Alert confirmation when trying to close tab while writing a message
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      const cleanText = (messageHtml || "").replace(/<[^>]+>/g, "").trim();
+      if (cleanText.length > 0) {
+        e.preventDefault();
+        e.returnValue = "Pesan Anda belum terkirim. Apakah Anda yakin ingin meninggalkan halaman?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [messageHtml]);
 
   // Track scroll position in chat body
   const handleChatScroll = () => {
@@ -177,10 +302,26 @@ export default function LiveChatClient() {
     }, 150);
   }, [activeSessionId]);
 
+  // Admin typing signal heartbeat
+  const handleAdminTypingSignal = () => {
+    if (!activeSessionId) return;
+    const now = Date.now();
+    if (now - lastTypingSignalRef.current > 2000) {
+      lastTypingSignalRef.current = now;
+      fetch(getApiUrl("/api/chat/sessions"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: activeSessionId, action: "typing" })
+      }).catch(() => { });
+    }
+  };
+
   // Add message to MS Teams Quote Reply list
   const handleQuoteMessage = (msg) => {
     if (quotedMessages.some((q) => q.id === msg.id)) return;
-    const rawText = (msg.message_html || "").replace(/<[^>]+>/g, "").trim();
+    // Strip nested blockquotes (and their inner text) first, then strip remaining HTML tags
+    const withoutBlockquotes = (msg.message_html || "").replace(/<blockquote[^>]*>[\s\S]*?<\/blockquote>/gi, "");
+    const rawText = withoutBlockquotes.replace(/<[^>]+>/g, "").trim();
     const snippet = rawText || msg.attachment_name || "Attachment";
 
     setQuotedMessages((prev) => [
@@ -210,7 +351,8 @@ export default function LiveChatClient() {
       (s.ip_address || "").includes(searchFilter);
     const matchesStatus =
       statusFilter === "all" ||
-      s.status === statusFilter ||
+      (statusFilter === "unread" && s.unread_admin > 0) ||
+      (statusFilter === "active" && s.status === "active") ||
       (statusFilter === "closed" && s.status === "closed") ||
       (statusFilter === "blocked" && s.status === "blocked");
     return matchesSearch && matchesStatus;
@@ -299,7 +441,7 @@ export default function LiveChatClient() {
     return quotedMessages
       .map(
         (q) =>
-          `<blockquote class="ms-teams-quote-block" style="border-left: 3px solid #3b82f6; background-color: #f8fafc; color: #1e293b; padding: 6px 10px; margin: 0 0 8px 0; border-radius: 4px; font-size: 0.85rem;">
+          `<blockquote class="ms-teams-quote-block" style="border-left: 3px solid #3b82f6; background-color: #f8fafc; color: #1e293b; padding: 8px 12px 8px 14px; margin: 0 0 8px 0; border-radius: 4px; font-size: 0.85rem;">
             <div style="font-weight: 700; color: #1e293b;">${q.sender_name} <span style="font-weight: normal; color: #64748b; font-size: 0.75rem;">${new Date(q.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}</span></div>
             <div style="color: #334155; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;">${q.text_snippet}</div>
           </blockquote>`
@@ -321,6 +463,23 @@ export default function LiveChatClient() {
         contentBody += `<div class="attachment-caption fw-semibold mb-1" style="color: #1e293b !important; font-weight: 600; font-size: 0.95rem; font-style: normal;"><i class="bi bi-card-text me-1 text-primary"></i> ${attachmentCaption.trim()}</div>`;
       }
       const finalMessageHtml = quoteHtml + contentBody;
+
+      // Optimistic UI update: Push temp message with sending = true
+      const tempId = "temp_" + Date.now();
+      const tempMsg = {
+        id: tempId,
+        session_id: activeSessionId,
+        sender_type: "admin",
+        sender_name: "Fatih Syauqi (Admin)",
+        message_html: finalMessageHtml,
+        attachment_url: attachment?.url || null,
+        attachment_name: attachment?.name || null,
+        attachment_size: attachment?.size || null,
+        is_read: 0,
+        sending: true,
+        created_at: new Date().toISOString()
+      };
+      setMessages((prev) => [...prev, tempMsg]);
 
       const payload = {
         session_id: activeSessionId,
@@ -426,6 +585,55 @@ export default function LiveChatClient() {
     }
   };
 
+  // Admin Action: Delete single chat session & its attachment files
+  const handleDeleteSession = async () => {
+    if (!activeSession) return;
+    if (!confirm(`⚠️ HAPUS SESI CHAT PERMANEN:\nApakah Anda yakin ingin menghapus sesi chat (${activeSession.full_name}) beserta SELURUH file attachment terunggah secara PERMANEN?\n\nTindakan ini TIDAK DAPAT DIBATALKAN!`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(getApiUrl(`/api/chat/sessions?session_id=${activeSession.id}`), {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        setActiveSessionId(null);
+        setMessages([]);
+        fetchSessions();
+      } else {
+        alert(data.error || "Gagal menghapus sesi chat");
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // Admin Action: Delete ALL chat sessions & ALL upload files physically
+  const handleDeleteAllSessions = async () => {
+    if (!confirm(`⚠️ PERINGATAN BAHAYA!\n\nApakah Anda yakin ingin MENGHAPUS SEMUA PERCAKAPAN CHAT beserta SELURUH BERKAS FILE ATTACHMENT DI FOLDER secara PERMANEN?\n\nFolder uploads/chat akan dibersihkan total walaupun file tersebut tidak ada di database.\n\nTindakan ini TIDAK DAPAT DIBATALKAN!`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(getApiUrl("/api/chat/sessions?action=delete_all"), {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message);
+        setActiveSessionId(null);
+        setMessages([]);
+        fetchSessions();
+      } else {
+        alert(data.error || "Gagal menghapus seluruh chat");
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const isImageFile = (url) => {
     if (!url) return false;
     return /\.(png|jpe?g|gif|webp|svg)$/i.test(url);
@@ -452,50 +660,150 @@ export default function LiveChatClient() {
   return (
     <div className="container-fluid p-0">
       {/* Main Chat Shell Layout - Flush to Top */}
-      <div className="card border-0 shadow-sm rounded-4 overflow-hidden" style={{ height: "calc(100vh - 70px)", minHeight: "650px" }}>
+      <div className="card border-0 shadow-sm rounded-4 overflow-hidden position-relative" style={{ height: "calc(100vh - 70px)", minHeight: "650px" }}>
         <div className="row g-0 h-100">
-          {/* ── LEFT SIDEBAR: SESSION LIST ── */}
-          <div className="col-12 col-md-4 col-lg-3 border-end bg-light d-flex flex-column h-100">
-            {/* Search & Filter */}
+          {/* ── LEFT SIDEBAR: SESSION LIST (Exact WhatsApp Web Desktop Layout) ── */}
+          <div
+            className={`col-12 col-md-4 col-lg-3 border-end flex-column h-100 bg-white ${showMobileSidebar
+                ? "d-flex position-absolute top-0 start-0 w-100 h-100 shadow-lg"
+                : "d-none d-md-flex"
+              }`}
+            style={{ zIndex: showMobileSidebar ? 1050 : 1 }}
+          >
+            {/* Header Sidebar Exact WhatsApp Web Layout */}
             <div className="p-3 border-bottom bg-white">
-              <div className="input-group input-group-sm mb-2">
-                <span className="input-group-text bg-light border-end-0">
-                  <i className="bi bi-search text-muted"></i>
+              <div className="d-flex align-items-center justify-content-between mb-2">
+                <div className="d-flex align-items-center gap-2">
+                  <h4 className="fw-bold mb-0" style={{ color: "#2563eb", fontSize: "1.35rem", letterSpacing: "-0.5px" }}>
+                    Live Chat
+                  </h4>
+                </div>
+
+                <div className="d-flex align-items-center gap-2">
+                  {/* Three dots WhatsApp Header Menu */}
+                  <div className="dropdown position-relative">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-link text-secondary p-1 border-0 shadow-none"
+                      onClick={() => setShowHeaderMenu(!showHeaderMenu)}
+                      title="Menu Aksi Sesi"
+                    >
+                      <i className="bi bi-three-dots-vertical fs-5" style={{ color: "#54656f" }}></i>
+                    </button>
+                    {showHeaderMenu && (
+                      <div
+                        className="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-1 shadow-md rounded-3 border-0 py-1.5 overflow-hidden"
+                        style={{ zIndex: 1060, minWidth: "180px", background: "#ffffff" }}
+                      >
+                        <button
+                          type="button"
+                          className="dropdown-item py-2 px-3 d-flex align-items-center gap-2 text-danger fw-semibold"
+                          onClick={() => { setShowHeaderMenu(false); handleDeleteAllSessions(); }}
+                        >
+                          <i className="bi bi-trash3-fill fs-6 text-danger"></i>
+                          <span>Hapus Semua Chat</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-light border text-muted px-2 py-0.5 d-md-none"
+                    onClick={() => setShowMobileSidebar(false)}
+                  >
+                    <i className="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              </div>
+
+              {/* Search Bar Exact WhatsApp Web Style */}
+              <div className="input-group my-2">
+                <span className="input-group-text border-0 ps-3 rounded-start-3" style={{ background: "#f0f2f5", color: "#54656f" }}>
+                  <i className="bi bi-search" style={{ fontSize: "14px" }}></i>
                 </span>
                 <input
                   type="text"
-                  className="form-control bg-light border-start-0"
-                  placeholder="Cari nama, email, hp, IP..."
+                  className="form-control border-0 rounded-end-3 shadow-none"
+                  placeholder="Cari atau mulai obrolan baru"
                   value={searchFilter}
                   onChange={(e) => setSearchFilter(e.target.value)}
+                  style={{ background: "#f0f2f5", fontSize: "13.5px", color: "#111b21" }}
                 />
               </div>
 
-              <div className="btn-group btn-group-sm w-100">
+              {/* Filter Pills Chips Row - Horizontally Scrollable via mouse wheel & touch drag */}
+              <div
+                className="d-flex align-items-center gap-1.5 pt-1 pb-1 flex-nowrap"
+                onWheel={(e) => {
+                  if (e.deltaY !== 0) {
+                    e.currentTarget.scrollLeft += e.deltaY;
+                  }
+                }}
+                style={{
+                  overflowX: "auto",
+                  whiteSpace: "nowrap",
+                  WebkitOverflowScrolling: "touch",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "#cbd5e1 transparent"
+                }}
+              >
                 <button
                   type="button"
-                  className={`btn ${statusFilter === "all" ? "btn-dark fw-bold" : "btn-outline-secondary"}`}
+                  className="btn btn-xs rounded-pill px-3 py-1.5 fw-semibold text-nowrap flex-shrink-0 transition-all border-0 shadow-none"
+                  style={{
+                    backgroundColor: statusFilter === "all" ? "#dbeafe" : "#f0f2f5",
+                    color: statusFilter === "all" ? "#1d4ed8" : "#54656f",
+                    fontSize: "12.5px"
+                  }}
                   onClick={() => setStatusFilter("all")}
                 >
                   Semua ({sessions.length})
                 </button>
                 <button
                   type="button"
-                  className={`btn ${statusFilter === "active" ? "btn-success fw-bold" : "btn-outline-secondary"}`}
+                  className="btn btn-xs rounded-pill px-3 py-1.5 fw-semibold text-nowrap flex-shrink-0 transition-all border-0 shadow-none"
+                  style={{
+                    backgroundColor: statusFilter === "unread" ? "#dbeafe" : "#f0f2f5",
+                    color: statusFilter === "unread" ? "#1d4ed8" : "#54656f",
+                    fontSize: "12.5px"
+                  }}
+                  onClick={() => setStatusFilter("unread")}
+                >
+                  Belum Dibaca ({sessions.filter(s => s.unread_admin > 0).length})
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-xs rounded-pill px-3 py-1.5 fw-semibold text-nowrap flex-shrink-0 transition-all border-0 shadow-none"
+                  style={{
+                    backgroundColor: statusFilter === "active" ? "#dbeafe" : "#f0f2f5",
+                    color: statusFilter === "active" ? "#1d4ed8" : "#54656f",
+                    fontSize: "12.5px"
+                  }}
                   onClick={() => setStatusFilter("active")}
                 >
                   Aktif ({sessions.filter(s => s.status === 'active').length})
                 </button>
                 <button
                   type="button"
-                  className={`btn ${statusFilter === "closed" ? "btn-secondary fw-bold" : "btn-outline-secondary"}`}
+                  className="btn btn-xs rounded-pill px-3 py-1.5 fw-semibold text-nowrap flex-shrink-0 transition-all border-0 shadow-none"
+                  style={{
+                    backgroundColor: statusFilter === "closed" ? "#dbeafe" : "#f0f2f5",
+                    color: statusFilter === "closed" ? "#1d4ed8" : "#54656f",
+                    fontSize: "12.5px"
+                  }}
                   onClick={() => setStatusFilter("closed")}
                 >
                   Tutup ({sessions.filter(s => s.status === 'closed').length})
                 </button>
                 <button
                   type="button"
-                  className={`btn ${statusFilter === "blocked" ? "btn-danger fw-bold" : "btn-outline-secondary"}`}
+                  className="btn btn-xs rounded-pill px-3 py-1.5 fw-semibold text-nowrap flex-shrink-0 transition-all border-0 shadow-none"
+                  style={{
+                    backgroundColor: statusFilter === "blocked" ? "#fee2e2" : "#f0f2f5",
+                    color: statusFilter === "blocked" ? "#dc2626" : "#54656f",
+                    fontSize: "12.5px"
+                  }}
                   onClick={() => setStatusFilter("blocked")}
                 >
                   Blokir ({sessions.filter(s => s.status === 'blocked').length})
@@ -503,7 +811,7 @@ export default function LiveChatClient() {
               </div>
             </div>
 
-            {/* Sessions List */}
+            {/* Sessions List Exact WhatsApp Web Style */}
             <div className="flex-grow-1 overflow-y-auto">
               {loading ? (
                 <div className="text-center p-4 text-muted">
@@ -517,45 +825,104 @@ export default function LiveChatClient() {
                 filteredSessions.map((session) => {
                   const isActive = session.id === activeSessionId;
                   const isUnread = session.unread_admin > 0;
+                  const avatarColor = getAvatarColor(session.full_name);
 
                   return (
                     <div
                       key={session.id}
-                      onClick={() => setActiveSessionId(session.id)}
-                      className={`p-3 border-bottom position-relative cursor-pointer transition-all ${
-                        isActive ? "bg-white border-start border-primary border-4 shadow-xs" : "hover-bg-white"
-                      }`}
-                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        setActiveSessionId(session.id);
+                        setShowMobileSidebar(false);
+                      }}
+                      className="d-flex align-items-center cursor-pointer transition-all border-bottom"
+                      style={{
+                        cursor: "pointer",
+                        backgroundColor: isActive ? "#f0f2f5" : "#ffffff",
+                        padding: "14px 16px",
+                        minHeight: "72px",
+                        borderColor: "#e9edef"
+                      }}
                     >
-                      <div className="d-flex align-items-center justify-content-between mb-1">
-                        <h6 className={`mb-0 text-truncate ${isUnread ? "fw-bold text-dark" : "fw-semibold text-dark-emphasis"}`} style={{ maxWidth: "150px" }}>
-                          {session.full_name}
-                        </h6>
-                        <small className="text-muted" style={{ fontSize: "11px" }}>
-                          {new Date(session.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                        </small>
+                      {/* WhatsApp 49px Circle Avatar */}
+                      <div className="position-relative flex-shrink-0 me-3">
+                        <div
+                          className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center shadow-2xs"
+                          style={{
+                            width: "49px",
+                            height: "49px",
+                            fontSize: "18px",
+                            backgroundColor: avatarColor
+                          }}
+                        >
+                          {session.full_name.charAt(0).toUpperCase()}
+                        </div>
+                        {!!session.is_user_typing && (
+                          <span
+                            className="position-absolute bottom-0 end-0 spinner-grow spinner-grow-sm text-success border border-2 border-white rounded-circle"
+                            style={{ width: "12px", height: "12px" }}
+                            title="Pengunjung sedang mengetik..."
+                          ></span>
+                        )}
                       </div>
 
-                      <p className="text-muted small mb-1 text-truncate" style={{ fontSize: "12px" }}>
-                        {session.initial_message || session.email}
-                      </p>
+                      {/* Item Content */}
+                      <div className="flex-grow-1 min-w-0 d-flex flex-column justify-content-center">
+                        <div className="d-flex align-items-center justify-content-between mb-1">
+                          <h6
+                            className="mb-0 text-truncate"
+                            style={{
+                              fontSize: "16px",
+                              color: "#111b21",
+                              fontWeight: isUnread ? "600" : "500"
+                            }}
+                          >
+                            {session.full_name}
+                          </h6>
+                          <small
+                            className="ms-2 flex-shrink-0"
+                            style={{
+                              fontSize: "12px",
+                              color: isUnread ? "#25D366" : "#667781",
+                              fontWeight: isUnread ? "600" : "normal"
+                            }}
+                          >
+                            {new Date(session.updated_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                          </small>
+                        </div>
 
-                      <div className="d-flex align-items-center justify-content-between">
-                        <span className={`badge ${
-                          session.status === 'active' ? 'bg-success-subtle text-success' :
-                          session.status === 'blocked' ? 'bg-danger-subtle text-danger' :
-                          'bg-secondary-subtle text-secondary'
-                        }`} style={{ fontSize: "10px" }}>
-                          {session.status === 'active' ? 'Aktif' :
-                           session.status === 'blocked' ? 'Diblokir' :
-                           session.closed_by === 'user' ? 'Tutup (User)' : 'Tutup (Admin)'}
-                        </span>
+                        <div className="d-flex align-items-center justify-content-between">
+                          <p
+                            className="mb-0 text-truncate"
+                            style={{
+                              fontSize: "13.5px",
+                              color: isUnread ? "#111b21" : "#667781",
+                              fontWeight: isUnread ? "500" : "normal",
+                              maxWidth: "180px"
+                            }}
+                          >
+                            {getLastMessagePreview(session)}
+                          </p>
 
-                        {isUnread && (
-                          <span className="badge rounded-pill bg-danger">
-                            {session.unread_admin} baru
-                          </span>
-                        )}
+                          <div className="d-flex align-items-center gap-1 ms-2 flex-shrink-0">
+                            {isUnread ? (
+                              <span
+                                className="badge rounded-circle bg-success text-white d-flex align-items-center justify-content-center shadow-xs"
+                                style={{
+                                  width: "20px",
+                                  height: "20px",
+                                  fontSize: "11px",
+                                  backgroundColor: "#25D366"
+                                }}
+                              >
+                                {session.unread_admin}
+                              </span>
+                            ) : session.status === 'blocked' ? (
+                              <span className="badge bg-danger-subtle text-danger" style={{ fontSize: "10px" }}>Diblokir</span>
+                            ) : session.status === 'closed' ? (
+                              <span className="badge bg-secondary-subtle text-secondary" style={{ fontSize: "10px" }}>Tutup</span>
+                            ) : null}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
@@ -590,7 +957,18 @@ export default function LiveChatClient() {
                   style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}
                 >
                   <div className="d-flex align-items-center gap-3">
-                    <div className="bg-white text-primary rounded-circle fw-bold d-flex align-items-center justify-content-center shadow-xs" style={{ width: "42px", height: "42px" }}>
+                    {/* Mobile Sesi Toggle Button */}
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light text-primary fw-bold d-md-none shadow-xs d-flex align-items-center gap-1 py-1 px-2"
+                      onClick={() => setShowMobileSidebar(true)}
+                      title="Lihat Daftar Sesi Chat"
+                    >
+                      <i className="bi bi-chat-left-text-fill"></i>
+                      <span>Sesi</span>
+                    </button>
+
+                    <div className="bg-white text-primary rounded-circle fw-bold d-flex align-items-center justify-content-center shadow-xs flex-shrink-0" style={{ width: "42px", height: "42px" }}>
                       {activeSession.full_name.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -610,43 +988,74 @@ export default function LiveChatClient() {
                     </div>
                   </div>
 
-                  <div className="d-flex align-items-center gap-2">
-                    <a
-                      href={formatWaUrl(activeSession.phone_number)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-sm btn-success d-flex align-items-center gap-1 fw-semibold shadow-xs"
+                  {/* Header Action Dropdown Menu (Aksi) */}
+                  <div className="dropdown position-relative">
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-light text-primary fw-bold dropdown-toggle d-flex align-items-center gap-1.5 shadow-xs px-3 py-1.5 rounded-3 border-0"
+                      onClick={() => setShowActionDropdown(!showActionDropdown)}
+                      style={{ backgroundColor: "#ffffff", color: "#2563eb" }}
                     >
-                      <i className="bi bi-whatsapp"></i>
-                      <span className="d-none d-sm-inline">Chat WA</span>
-                    </a>
+                      <i className="bi bi-gear-fill"></i>
+                      <span>Aksi</span>
+                    </button>
 
-                    {activeSession.status === 'blocked' ? (
-                      <button
-                        type="button"
-                        onClick={handleUnblockUser}
-                        className="btn btn-sm btn-warning text-dark fw-bold"
+                    {showActionDropdown && (
+                      <div
+                        className="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-2 shadow-lg rounded-3 border-0 py-1.5 overflow-hidden"
+                        style={{ zIndex: 1060, minWidth: "200px", background: "#ffffff" }}
                       >
-                        <i className="bi bi-unlock-fill me-1"></i> Buka Blokir
-                      </button>
-                    ) : (
-                      <>
+                        <a
+                          href={formatWaUrl(activeSession.phone_number)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="dropdown-item py-2 px-3 d-flex align-items-center gap-2 text-success fw-semibold"
+                          onClick={() => setShowActionDropdown(false)}
+                        >
+                          <i className="bi bi-whatsapp fs-6 text-success"></i>
+                          <span>Chat WhatsApp</span>
+                        </a>
+
+                        {activeSession.status === 'blocked' ? (
+                          <button
+                            type="button"
+                            onClick={() => { setShowActionDropdown(false); handleUnblockUser(); }}
+                            className="dropdown-item py-2 px-3 d-flex align-items-center gap-2 text-warning fw-bold"
+                          >
+                            <i className="bi bi-unlock-fill fs-6 text-warning"></i>
+                            <span>Buka Pemblokiran</span>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => { setShowActionDropdown(false); handleToggleStatus(); }}
+                              className="dropdown-item py-2 px-3 d-flex align-items-center gap-2 text-dark fw-medium"
+                            >
+                              <i className={`bi ${activeSession.status === 'active' ? 'bi-x-circle-fill text-secondary' : 'bi-check-circle-fill text-success'} fs-6`}></i>
+                              <span>{activeSession.status === 'active' ? 'Tutup Sesi Chat' : 'Buka Kembali Sesi'}</span>
+                            </button>
+                            <div className="dropdown-divider my-1"></div>
+                            <button
+                              type="button"
+                              onClick={() => { setShowActionDropdown(false); handleBlockUser(); }}
+                              className="dropdown-item py-2 px-3 d-flex align-items-center gap-2 text-danger fw-semibold"
+                            >
+                              <i className="bi bi-shield-slash-fill fs-6 text-danger"></i>
+                              <span>Blokir Pengunjung</span>
+                            </button>
+                          </>
+                        )}
+                        <div className="dropdown-divider my-1"></div>
                         <button
                           type="button"
-                          onClick={handleToggleStatus}
-                          className={`btn btn-sm ${activeSession.status === 'active' ? 'btn-light text-dark fw-bold' : 'btn-outline-light'}`}
+                          onClick={() => { setShowActionDropdown(false); handleDeleteSession(); }}
+                          className="dropdown-item py-2 px-3 d-flex align-items-center gap-2 text-danger fw-bold"
                         >
-                          {activeSession.status === 'active' ? 'Tutup Sesi' : 'Buka Kembali'}
+                          <i className="bi bi-trash-fill fs-6 text-danger"></i>
+                          <span>Hapus Sesi Chat Ini</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={handleBlockUser}
-                          className="btn btn-sm btn-danger text-white fw-semibold"
-                          title="Blokir User (IP, Email, & No. HP Pengunjung Ini)"
-                        >
-                          <i className="bi bi-shield-slash-fill me-1"></i> Blokir User
-                        </button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -672,12 +1081,9 @@ export default function LiveChatClient() {
                         key={msg.id}
                         className={`d-flex flex-column mb-3 position-relative ${isAdmin ? "align-items-end" : "align-items-start"}`}
                       >
-                        <div className="d-flex align-items-center gap-1.5 mb-1 px-1">
+                        <div className="d-flex align-items-center gap-2 mb-1 px-1">
                           <small className="fw-semibold text-slate-700" style={{ fontSize: "11px", color: "#475569" }}>
                             {msg.sender_name}
-                          </small>
-                          <small className="text-slate-500" style={{ fontSize: "10px", color: "#64748b" }}>
-                            • {new Date(msg.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
                           </small>
                           {/* Reply Text Button */}
                           <button
@@ -692,20 +1098,31 @@ export default function LiveChatClient() {
                           </button>
                         </div>
 
-                        {/* White Background Bubble dengan Font Warna Hitam */}
+                        {/* WhatsApp Style Bubble with Font Warna Hitam */}
                         <div
-                          className="p-3 shadow-xs bg-white text-slate-800 border"
+                          className="shadow-xs border"
                           style={{
                             maxWidth: "85%",
                             fontSize: "0.95rem",
                             lineHeight: "1.5",
-                            background: "#ffffff",
+                            background: isAdmin ? "#d9fdd3" : "#ffffff",
                             color: "#1e293b",
-                            borderColor: "#e2e8f0",
+                            borderColor: isAdmin ? "#d9fdd3" : "#e2e8f0",
                             borderRadius: isAdmin ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                            padding: "6px 10px 6px 12px",
+                            minWidth: "85px",
+                            display: "inline-block"
                           }}
                         >
+                          {/* Inject CSS override to display editor paragraphs inline inside chat bubbles */}
+                          <style dangerouslySetInnerHTML={{ __html: `
+                            .message-rich-content, .message-rich-content p {
+                              display: inline !important;
+                              margin: 0 !important;
+                            }
+                          `}} />
+
                           {/* Rich Text Sanitized Content */}
                           {cleanHtml && (
                             <div
@@ -717,7 +1134,7 @@ export default function LiveChatClient() {
 
                           {/* Attachment Card */}
                           {msg.attachment_url && (
-                            <div className="mt-2 pt-2 border-top border-slate-200">
+                            <div className="mt-2 pt-2 border-top border-slate-200 d-block" style={{ display: "block" }}>
                               {isImageFile(msg.attachment_url) ? (
                                 <div>
                                   <img
@@ -760,10 +1177,65 @@ export default function LiveChatClient() {
                               )}
                             </div>
                           )}
+
+                          {/* Bottom Right timestamp & flags */}
+                          <span
+                            className="d-inline-flex align-items-center gap-1 text-muted"
+                            style={{
+                              fontSize: "10px",
+                              color: "#667781",
+                              userSelect: "none",
+                              marginLeft: "8px",
+                              marginTop: "4px",
+                              float: "right",
+                              verticalAlign: "bottom"
+                            }}
+                          >
+                            <span>
+                              {new Date(msg.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                            {isAdmin && (
+                              <span className="d-inline-flex align-items-center" style={{ lineHeight: "1" }}>
+                                {msg.sending ? (
+                                  <i className="bi bi-clock text-muted" style={{ fontSize: "9px" }} title="Menunggu terkirim..."></i>
+                                ) : msg.is_read ? (
+                                  <i className="bi bi-check2-all text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Dibaca"></i>
+                                ) : (
+                                  <i className="bi bi-check2 text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Terkirim"></i>
+                                )}
+                              </span>
+                            )}
+                          </span>
                         </div>
                       </div>
                     );
                   })}
+
+                  {/* Typing Indicator Balloon when Visitor is typing */}
+                  {!!activeSession?.is_user_typing && (
+                    <div className="d-flex flex-column align-items-start mb-3 animate-fade-in">
+                      <small className="fw-semibold text-slate-500 mb-1 px-1" style={{ fontSize: "10px", color: "#64748b" }}>
+                        {activeSession.full_name}
+                      </small>
+                      <div
+                        className="p-2.5 px-3 bg-white text-slate-700 border shadow-xs d-flex align-items-center gap-2"
+                        style={{
+                          borderRadius: "18px 18px 18px 4px",
+                          fontSize: "0.85rem",
+                          background: "#ffffff",
+                          borderColor: "#e2e8f0"
+                        }}
+                      >
+                        <span className="fst-italic text-muted">sedang mengetik</span>
+                        <span className="d-inline-flex align-items-center gap-1 ms-1">
+                          <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: "6px", height: "6px", animationDuration: "0.6s" }}></span>
+                          <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: "6px", height: "6px", animationDuration: "0.8s" }}></span>
+                          <span className="spinner-grow spinner-grow-sm text-primary" style={{ width: "6px", height: "6px", animationDuration: "1s" }}></span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={messagesEndRef} />
                 </div>
 
@@ -774,7 +1246,7 @@ export default function LiveChatClient() {
                     <div className="ms-teams-quote-preview-container mb-2 p-2 bg-slate-50 border rounded-3" style={{ maxHeight: "120px", overflowY: "auto", backgroundColor: "#f8fafc" }}>
                       <div className="d-flex align-items-center justify-content-between mb-1">
                         <small className="fw-bold text-primary" style={{ fontSize: "11px" }}>
-                          <i className="bi bi-quote me-1"></i> Membalas {quotedMessages.length} Pesan (MS Teams Mode)
+                          <i className="bi bi-quote me-1"></i> Membalas {quotedMessages.length} Pesan
                         </small>
                         <button
                           type="button"
@@ -785,7 +1257,7 @@ export default function LiveChatClient() {
                       </div>
 
                       {quotedMessages.map((q) => (
-                        <div key={q.id} className="p-1.5 mb-1 bg-white border-start border-3 border-primary rounded-end shadow-2xs position-relative">
+                        <div key={q.id} className="py-1.5 ps-3 pe-2 mb-1 bg-white border-start border-3 border-primary rounded-end shadow-2xs position-relative">
                           <div className="d-flex align-items-center justify-content-between">
                             <small className="fw-semibold text-slate-700" style={{ fontSize: "11px" }}>
                               {q.sender_name} <span className="text-muted fw-normal">({new Date(q.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })})</span>
@@ -830,7 +1302,10 @@ export default function LiveChatClient() {
 
                   <WysiwygEditor
                     value={messageHtml}
-                    onChange={setMessageHtml}
+                    onChange={(val) => {
+                      setMessageHtml(val);
+                      if (val.trim()) handleAdminTypingSignal();
+                    }}
                     onSend={handleSendMessage}
                     placeholder="Ketik balasan Anda ke pengunjung..."
                   />

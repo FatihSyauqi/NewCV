@@ -5,12 +5,47 @@ import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-const getClientIp = (request) => {
-  const forwarded = request.headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
+function isPrivateOrLocalIp(ip) {
+  if (!ip) return true;
+  const clean = ip.replace(/^::ffff:/, '');
+  if (clean === '::1' || clean === '127.0.0.1' || clean === 'localhost') return true;
+  if (clean.startsWith('10.') || clean.startsWith('192.168.')) return true;
+  if (clean.startsWith('172.')) {
+    const parts = clean.split('.');
+    const second = parseInt(parts[1], 10);
+    if (second >= 16 && second <= 31) return true;
+  }
+  return false;
+}
+
+const getClientIp = (request, fallbackIp = null) => {
+  // 1. Cloudflare header
+  const cfIp = request.headers.get("cf-connecting-ip");
+  if (cfIp && !isPrivateOrLocalIp(cfIp)) return cfIp.trim();
+
+  // 2. Nginx / Proxy Real IP
   const realIp = request.headers.get("x-real-ip");
+  if (realIp && !isPrivateOrLocalIp(realIp)) return realIp.trim();
+
+  // 3. X-Forwarded-For header chain
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const ips = forwarded.split(",").map(ip => ip.trim());
+    const publicIp = ips.find(ip => !isPrivateOrLocalIp(ip));
+    if (publicIp) return publicIp;
+  }
+
+  // 4. Other proxy headers
+  const clientIp = request.headers.get("x-client-ip") || request.headers.get("true-client-ip") || request.headers.get("fastly-client-ip");
+  if (clientIp && !isPrivateOrLocalIp(clientIp)) return clientIp.trim();
+
+  // 5. Client-side browser detected Public IP fallback
+  if (fallbackIp && !isPrivateOrLocalIp(fallbackIp)) return fallbackIp.trim();
+
+  if (forwarded) return forwarded.split(",")[0].trim();
   if (realIp) return realIp.trim();
-  return "127.0.0.1";
+
+  return fallbackIp || "127.0.0.1";
 };
 
 async function ensureTablesAndColumns() {
@@ -28,6 +63,8 @@ async function ensureTablesAndColumns() {
       \`closed_by\` varchar(20) DEFAULT NULL,
       \`unread_user\` int(11) DEFAULT 0,
       \`unread_admin\` int(11) DEFAULT 0,
+      \`user_typing_at\` timestamp NULL DEFAULT NULL,
+      \`admin_typing_at\` timestamp NULL DEFAULT NULL,
       \`created_at\` timestamp NOT NULL DEFAULT current_timestamp(),
       \`updated_at\` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
       PRIMARY KEY (\`id\`),
@@ -89,6 +126,12 @@ async function ensureTablesAndColumns() {
     if (!columnNames.includes("closed_by")) {
       await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`closed_by\` varchar(20) DEFAULT NULL AFTER \`status\``);
     }
+    if (!columnNames.includes("user_typing_at")) {
+      await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`user_typing_at\` timestamp NULL DEFAULT NULL`);
+    }
+    if (!columnNames.includes("admin_typing_at")) {
+      await query(`ALTER TABLE \`chat_sessions\` ADD COLUMN \`admin_typing_at\` timestamp NULL DEFAULT NULL`);
+    }
   } catch (e) {}
 }
 
@@ -115,7 +158,7 @@ async function isAdminOffline() {
   return seconds === null || seconds > 15;
 }
 
-async function checkAndSendTelegramNotification({ senderName, email, phone, messageText, title = "PESAN LIVE CHAT BARU" }) {
+async function checkAndSendTelegramNotification({ senderName, email, phone, messageText, title = "CHAT SESI BARU" }) {
   try {
     const offline = await isAdminOffline();
     if (!offline) return; // Admin is online, skip Telegram alert!
@@ -150,10 +193,11 @@ async function checkAndSendTelegramNotification({ senderName, email, phone, mess
 
 export async function POST(request) {
   try {
-    const clientIp = getClientIp(request);
     await ensureTablesAndColumns();
 
-    const { full_name, email, phone_number, initial_message, visitor_device_id } = await request.json();
+    const body = await request.json();
+    const { full_name, email, phone_number, initial_message, visitor_device_id, client_public_ip } = body;
+    const clientIp = getClientIp(request, client_public_ip);
 
     if (!full_name || !email || !phone_number || !initial_message) {
       return NextResponse.json(
@@ -172,39 +216,46 @@ export async function POST(request) {
     }
 
     const session_token = crypto.randomBytes(32).toString("hex");
-    const cleanMessage = sanitizeHtml(initial_message);
 
     const sessionRes = await query(
       `INSERT INTO chat_sessions (session_token, full_name, email, phone_number, ip_address, visitor_device_id, initial_message, status, unread_admin)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'active', 1)`,
-      [session_token, full_name.trim(), email.trim(), phone_number.trim(), clientIp, visitor_device_id || null, cleanMessage]
+      [
+        session_token,
+        full_name,
+        email,
+        phone_number,
+        clientIp,
+        visitor_device_id || null,
+        initial_message
+      ]
     );
 
     const sessionId = sessionRes.insertId;
+    const cleanMessage = sanitizeHtml(initial_message);
 
     await query(
       `INSERT INTO chat_messages (session_id, sender_type, sender_name, message_html, is_read)
        VALUES (?, 'user', ?, ?, 0)`,
-      [sessionId, full_name.trim(), cleanMessage]
+      [sessionId, full_name, cleanMessage]
     );
 
-    // Send Telegram Notification if Admin is Offline
+    // Send Telegram Alert if Admin is Offline
     checkAndSendTelegramNotification({
-      senderName: full_name.trim(),
-      email: email.trim(),
-      phone: phone_number.trim(),
+      senderName: full_name,
+      email,
+      phone: phone_number,
       messageText: cleanMessage,
-      title: "KONSULTASI CHAT BARU"
+      title: "SESI CHAT BARU"
     });
 
     return NextResponse.json({
       success: true,
       session_token,
-      session_id: sessionId,
-      message: "Chat session started successfully"
+      message: "Obrolan berhasil dimulai"
     });
   } catch (error) {
-    console.error("Chat init error:", error);
+    console.error("Init chat error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

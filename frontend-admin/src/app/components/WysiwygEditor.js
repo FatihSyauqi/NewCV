@@ -4,8 +4,8 @@ import { useRef, useEffect, useState } from "react";
 import { sanitizeHtml } from "@/lib/sanitizer";
 
 const POPULAR_EMOJIS = [
-  "😊", "👍", "🙏", "🚀", "💡", "🔥", "❤️", "👋", 
-  "💼", "💻", "🎯", "✅", "📞", "💬", "📝", "📁", 
+  "😊", "👍", "🙏", "🚀", "💡", "🔥", "❤️", "👋",
+  "💼", "💻", "🎯", "✅", "📞", "💬", "📝", "📁",
   "⭐", "🎉", "🤝", "👌", "🙌", "⚡", "📌", "✨"
 ];
 
