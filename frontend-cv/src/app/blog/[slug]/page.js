@@ -1,4 +1,5 @@
 import { query } from "@/lib/db";
+import { getSeoSettings } from "@/lib/seo";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -26,10 +27,58 @@ async function getPersonalInfo() {
   }
 }
 
+export async function generateMetadata({ params }) {
+  const post = await getBlogPost(params.slug);
+  const personalInfo = await getPersonalInfo();
+  const seo = await getSeoSettings();
+
+  if (!post) {
+    return {
+      title: "Artikel Tidak Ditemukan",
+    };
+  }
+
+  const title = `${post.title} | ${personalInfo?.name || "Fatih Syauqi"}`;
+  const description = post.excerpt || post.content?.substring(0, 155) || "Artikel pemrograman dan rekayasa perangkat lunak.";
+  const ogImage = post.image_url || seo?.og_image || personalInfo?.avatar_url || "/images/avatar.jpg";
+  const canonicalUrl = seo?.canonical_url || "https://fatihsyauqi.my.id";
+
+  return {
+    title: title,
+    description: description,
+    keywords: `${post.category || 'Software Engineering'}, ${post.title}, Fatih Syauqi, Blog`,
+    authors: [{ name: personalInfo?.name || "Fatih Syauqi" }],
+    openGraph: {
+      title: post.title,
+      description: description,
+      url: `/blog/${post.slug}`,
+      siteName: `${personalInfo?.name || "Fatih Syauqi"} Blog`,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: post.title,
+        },
+      ],
+      type: "article",
+      publishedTime: post.created_at,
+      authors: [personalInfo?.name || "Fatih Syauqi"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: description,
+      images: [ogImage],
+    },
+  };
+}
+
 export default async function BlogPostDetail({ params }) {
-  const [post, personalInfo] = await Promise.all([
+  const [post, personalInfo, seo] = await Promise.all([
     getBlogPost(params.slug),
-    getPersonalInfo()
+    getPersonalInfo(),
+    getSeoSettings()
   ]);
 
   if (!post) {
@@ -40,9 +89,30 @@ export default async function BlogPostDetail({ params }) {
   const authorAvatar = personalInfo?.avatar_url || "/images/avatar.jpg";
   const authorAbout = personalInfo?.about_me || "";
   const authorTitle = personalInfo?.title || "Software Engineer";
+  const canonicalUrl = seo?.canonical_url || "https://fatihsyauqi.my.id";
+
+  const jsonLdBlogPost = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    "headline": post.title,
+    "image": [post.image_url || "/images/blog-placeholder.svg"],
+    "datePublished": post.created_at,
+    "dateModified": post.updated_at || post.created_at,
+    "author": [{
+      "@type": "Person",
+      "name": authorName,
+      "url": canonicalUrl
+    }],
+    "description": post.excerpt || post.content?.substring(0, 150),
+    "articleBody": post.content
+  };
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdBlogPost) }}
+      />
       {/* Navigation */}
       <nav className="navbar navbar-expand-lg fixed-top custom-nav">
         <div className="container">

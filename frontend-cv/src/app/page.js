@@ -1,17 +1,79 @@
 import { query } from "@/lib/db";
+import { getSeoSettings } from "@/lib/seo";
 import PortfolioGrid from "./components/PortfolioGrid";
 import Navbar from "./components/Navbar";
 import Link from "next/link";
 import MarqueeScroller from "./components/MarqueeScroller";
 import ContactSection from "./components/ContactSection";
 import PageLoader from "./components/PageLoader";
+import LiveChatWidget from "./components/LiveChatWidget";
 
 // Force dynamic rendering since we are reading from DB
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
 
+export async function generateMetadata() {
+  const seo = await getSeoSettings();
+  const personalInfoRows = await query("SELECT * FROM personal_info LIMIT 1").catch(() => []);
+  const personalInfo = personalInfoRows[0] || {};
+
+  const title = seo?.meta_title || `${personalInfo.name || 'Fatih Syauqi'} - ${personalInfo.title || 'Software Engineer'}`;
+  const description = seo?.meta_description || personalInfo.about_me || "CV & Portfolio website";
+  const keywords = seo?.meta_keywords || "Software Engineer, Fullstack Developer, Web Developer";
+  const ogImage = seo?.og_image || personalInfo.avatar_url || "/images/avatar.jpg";
+  const canonicalUrl = seo?.canonical_url || "https://fatihsyauqi.my.id";
+
+  const cleanCanonical = canonicalUrl.startsWith('http') ? canonicalUrl : `https://${canonicalUrl}`;
+
+  return {
+    title: title,
+    description: description,
+    keywords: keywords,
+    authors: [{ name: seo?.author_name || personalInfo.name || "Fatih Syauqi" }],
+    creator: seo?.author_name || personalInfo.name || "Fatih Syauqi",
+    metadataBase: new URL(cleanCanonical),
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      title: seo?.og_title || title,
+      description: seo?.og_description || description,
+      url: "/",
+      siteName: `${seo?.author_name || personalInfo.name || "Fatih Syauqi"} Portfolio`,
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
+      locale: "id_ID",
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seo?.og_title || title,
+      description: seo?.og_description || description,
+      images: [ogImage],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
+    },
+  };
+}
+
 async function getCVData() {
   try {
+    const seoSettings = await getSeoSettings();
     const personalInfo = await query("SELECT * FROM personal_info LIMIT 1");
     const experiences = await query("SELECT * FROM experiences ORDER BY sort_order ASC, id DESC");
     const education = await query("SELECT * FROM education ORDER BY sort_order ASC");
@@ -21,6 +83,7 @@ async function getCVData() {
     const blogs = await query("SELECT * FROM blogs WHERE status = 'published' ORDER BY created_at DESC LIMIT 3");
 
     return {
+      seoSettings,
       personalInfo: personalInfo[0] || null,
       experiences,
       education,
@@ -32,6 +95,7 @@ async function getCVData() {
   } catch (error) {
     console.error("Error fetching CV data from database:", error);
     return {
+      seoSettings: null,
       personalInfo: {
         name: "Fatih Syauqi",
         title: "Software Engineer",
@@ -54,7 +118,7 @@ async function getCVData() {
 
 export default async function Home() {
   const data = await getCVData();
-  const { personalInfo, experiences, education, skills, certificates, portfolios, blogs } = data;
+  const { seoSettings, personalInfo, experiences, education, skills, certificates, portfolios, blogs } = data;
   const highlightedSkills = skills.filter((s) => s.is_highlight === 1);
 
   // Group skills by category
@@ -71,8 +135,52 @@ export default async function Home() {
     });
   });
 
+  const canonicalUrl = seoSettings?.canonical_url || "https://fatihsyauqi.my.id";
+
+  // Structured Data Schema.org
+  const jsonLdPerson = {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": personalInfo?.name || "Fatih Syauqi",
+    "jobTitle": personalInfo?.title || "Software Engineer",
+    "url": canonicalUrl,
+    "image": personalInfo?.avatar_url || "/images/avatar.jpg",
+    "email": personalInfo?.email,
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": personalInfo?.location || "Indonesia"
+    },
+    "sameAs": [
+      personalInfo?.linkedin,
+      personalInfo?.github
+    ].filter(Boolean),
+    "description": personalInfo?.about_me,
+    "knowsAbout": skills.map(s => s.name)
+  };
+
+  const jsonLdService = {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": `${personalInfo?.name || "Fatih Syauqi"} - Software Engineering & Enterprise Solutions`,
+    "url": canonicalUrl,
+    "image": seoSettings?.og_image || personalInfo?.avatar_url || "/images/avatar.jpg",
+    "description": seoSettings?.meta_description || personalInfo?.about_me,
+    "serviceType": seoSettings?.target_services ? seoSettings.target_services.split(",") : ["Web Application Development", "Mobile App Development", "Software Architecture"],
+    "areaServed": "Worldwide"
+  };
+
   return (
     <>
+      {/* Schema.org Structured Data for Google Search & Recruiters */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdPerson) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdService) }}
+      />
+
       {/* Full-screen Developer & Career Preloader */}
       <PageLoader />
 
@@ -505,6 +613,9 @@ export default async function Home() {
           </div>
         </div>
       </footer>
+
+      {/* Floating Live Chat Widget (Pojok Kanan Bawah) */}
+      <LiveChatWidget />
     </>
   );
 }

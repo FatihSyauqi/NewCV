@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 06, 2026 at 04:35 AM
+-- Generation Time: Aug 07, 2026 at 05:56 AM
 -- Server version: 10.4.18-MariaDB
 -- PHP Version: 7.3.28
 
@@ -90,6 +90,106 @@ CREATE TABLE `certificates` (
 INSERT INTO `certificates` (`id`, `title`, `issuer`, `credential_id`, `issue_date`, `sort_order`) VALUES
 (1, 'KEYWORD RESEARCH COURSE WITH GREG GIFFORD', 'Semrush.com', '415701', '2023', 1),
 (2, 'CERTIFIED WEB DEVELOPER (CWDEV)', 'Badan Nasional Sertifikasi Profesi (BNSP)', '62019 2513 6 0028243 2024', '2024', 2);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_admin_status`
+--
+
+CREATE TABLE `chat_admin_status` (
+  `id` int(11) NOT NULL,
+  `last_seen` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Dumping data for table `chat_admin_status`
+--
+
+INSERT INTO `chat_admin_status` (`id`, `last_seen`) VALUES
+(1, '2026-08-07 03:56:44');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_blocked_entities`
+--
+
+CREATE TABLE `chat_blocked_entities` (
+  `id` int(11) NOT NULL,
+  `type` enum('ip','email','phone') NOT NULL,
+  `value` varchar(150) NOT NULL,
+  `reason` varchar(255) DEFAULT 'Spam/Abuse',
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_messages`
+--
+
+CREATE TABLE `chat_messages` (
+  `id` int(11) NOT NULL,
+  `session_id` int(11) NOT NULL,
+  `sender_type` enum('user','admin') NOT NULL,
+  `sender_name` varchar(100) NOT NULL,
+  `message_html` text NOT NULL,
+  `attachment_url` varchar(255) DEFAULT NULL,
+  `attachment_name` varchar(255) DEFAULT NULL,
+  `attachment_size` int(11) DEFAULT NULL,
+  `is_read` tinyint(1) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Dumping data for table `chat_messages`
+--
+
+INSERT INTO `chat_messages` (`id`, `session_id`, `sender_type`, `sender_name`, `message_html`, `attachment_url`, `attachment_name`, `attachment_size`, `is_read`, `created_at`) VALUES
+(26, 4, 'user', 'Arif Hidayat', '2dwdwd', NULL, NULL, NULL, 0, '2026-08-07 03:16:44'),
+(27, 4, 'admin', 'Fatih Syauqi (Admin)', 'wdwd', NULL, NULL, NULL, 0, '2026-08-07 03:16:48'),
+(28, 4, 'admin', 'Fatih Syauqi (Admin)', 'fwfwd', NULL, NULL, NULL, 0, '2026-08-07 03:16:49'),
+(29, 4, 'admin', 'Fatih Syauqi (Admin)', 'qsqddw', NULL, NULL, NULL, 0, '2026-08-07 03:16:51'),
+(30, 4, 'admin', 'Fatih Syauqi (Admin)', 'Halo', NULL, NULL, NULL, 0, '2026-08-07 03:17:03'),
+(31, 4, 'admin', 'Fatih Syauqi (Admin)', 'Ini Fatih', NULL, NULL, NULL, 0, '2026-08-07 03:17:15'),
+(32, 4, 'admin', 'Fatih Syauqi (Admin)', 'Halo', NULL, NULL, NULL, 0, '2026-08-07 03:18:13'),
+(33, 4, 'user', 'Arif Hidayat', 'ardi', NULL, NULL, NULL, 0, '2026-08-07 03:18:22'),
+(34, 4, 'admin', 'Fatih Syauqi (Admin)', 'ya', NULL, NULL, NULL, 0, '2026-08-07 03:18:33'),
+(35, 4, 'admin', 'System Notice', '<div class=\"text-center text-muted small py-1\"><i class=\"bi bi-info-circle me-1\"></i> Sesi obrolan ini diakhiri oleh Pengunjung.</div>', NULL, NULL, NULL, 1, '2026-08-07 03:18:49'),
+(36, 4, 'admin', 'System Notice', '<div class=\"text-center text-success small py-1\"><i class=\"bi bi-unlock-fill me-1\"></i> Sesi percakapan dibuka kembali oleh Admin.</div>', NULL, NULL, NULL, 1, '2026-08-07 03:19:04'),
+(37, 4, 'user', 'Arif Hidayat', '', '/uploads/chat/gemini_generated_image_k1iwg7k1iwg7k1iw-d885.png', 'Gemini_Generated_Image_k1iwg7k1iwg7k1iw.png', 5936697, 0, '2026-08-07 03:19:23'),
+(38, 5, 'user', 'FATIH SYAUQI', 'w', NULL, NULL, NULL, 0, '2026-08-07 03:48:38'),
+(39, 5, 'admin', 'Fatih Syauqi (Admin)', 'Ya', NULL, NULL, NULL, 0, '2026-08-07 03:49:15'),
+(40, 5, 'user', 'FATIH SYAUQI', 'tolong', NULL, NULL, NULL, 0, '2026-08-07 03:49:25'),
+(41, 5, 'user', 'FATIH SYAUQI', 'good', NULL, NULL, NULL, 0, '2026-08-07 03:49:36'),
+(42, 5, 'user', 'FATIH SYAUQI', 'wey', NULL, NULL, NULL, 0, '2026-08-07 03:50:15'),
+(43, 5, 'admin', 'Fatih Syauqi (Admin)', 'nice', NULL, NULL, NULL, 0, '2026-08-07 03:50:20'),
+(44, 5, 'user', 'FATIH SYAUQI', 'tih', NULL, NULL, NULL, 0, '2026-08-07 03:50:28'),
+(45, 5, 'user', 'FATIH SYAUQI', 'apa', NULL, NULL, NULL, 0, '2026-08-07 03:55:23');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `chat_sessions`
+--
+
+CREATE TABLE `chat_sessions` (
+  `id` int(11) NOT NULL,
+  `session_token` varchar(64) NOT NULL,
+  `full_name` varchar(100) NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `phone_number` varchar(50) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `visitor_device_id` varchar(64) DEFAULT NULL,
+  `initial_message` text DEFAULT NULL,
+  `status` varchar(20) DEFAULT 'active',
+  `closed_by` varchar(20) DEFAULT NULL,
+  `unread_user` int(11) DEFAULT 0,
+  `unread_admin` int(11) DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- --------------------------------------------------------
 
@@ -240,6 +340,35 @@ INSERT INTO `portfolios` (`id`, `title`, `category`, `description`, `tech_stack`
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `seo_settings`
+--
+
+CREATE TABLE `seo_settings` (
+  `id` int(11) NOT NULL,
+  `meta_title` varchar(255) NOT NULL,
+  `meta_description` text NOT NULL,
+  `meta_keywords` text DEFAULT NULL,
+  `og_title` varchar(255) DEFAULT NULL,
+  `og_description` text DEFAULT NULL,
+  `og_image` varchar(255) DEFAULT NULL,
+  `canonical_url` varchar(255) DEFAULT NULL,
+  `author_name` varchar(100) DEFAULT NULL,
+  `job_title` varchar(100) DEFAULT NULL,
+  `target_services` text DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+--
+-- Dumping data for table `seo_settings`
+--
+
+INSERT INTO `seo_settings` (`id`, `meta_title`, `meta_description`, `meta_keywords`, `og_title`, `og_description`, `og_image`, `canonical_url`, `author_name`, `job_title`, `target_services`, `updated_at`) VALUES
+(1, 'Fatih Syauqi - Senior Software Engineer & Web Mobile App Developer', 'Jasa Pembuatan Website, Aplikasi Mobile (React Native), & API Gateway Enterprise oleh Fatih Syauqi - Senior Software Engineer 9+ tahun pengalaman (.NET C#, PHP Laravel, ReactJS). Siap bekerjasama dengan perusahaan & bisnis.', 'Software Engineer Indonesia, Jasa Pembuatan Aplikasi, Fullstack Developer, React Native Engineer, ASP.NET Developer, Hire Software Engineer, IT Consultant, Web Developer Bogor Jakarta', 'Fatih Syauqi - Senior Software Engineer & Enterprise App Developer', 'Portofolio & CV Fatih Syauqi, Software Engineer berpengalaman dalam membangun aplikasi web & mobile scalable untuk perusahaan dan bisnis.', '/uploads/profile/avatar-2eb0.png', 'https://fatihsyauqi.my.id', 'Fatih Syauqi', 'Senior Software Engineer', 'Software Architecture, Web Application Development, Mobile App Development, Cloud DevOps, System Integration', '2026-08-07 02:13:11'),
+(2, 'Fatih Syauqi - Senior Software Engineer & Web Mobile App Developer', 'Jasa Pembuatan Website, Aplikasi Mobile (React Native), & API Gateway Enterprise oleh Fatih Syauqi - Senior Software Engineer 9+ tahun pengalaman (.NET C#, PHP Laravel, ReactJS). Siap bekerjasama dengan perusahaan & bisnis.', 'Software Engineer Indonesia, Jasa Pembuatan Aplikasi, Fullstack Developer, React Native Engineer, ASP.NET Developer, Hire Software Engineer, IT Consultant, Web Developer Bogor Jakarta', 'Fatih Syauqi - Senior Software Engineer & Enterprise App Developer', 'Portofolio & CV Fatih Syauqi, Software Engineer berpengalaman dalam membangun aplikasi web & mobile scalable untuk perusahaan dan bisnis.', '/uploads/profile/avatar-2eb0.png', 'https://fatihsyauqi.my.id', 'Fatih Syauqi', 'Senior Software Engineer', 'Software Architecture, Web Application Development, Mobile App Development, Cloud DevOps, System Integration', '2026-08-07 02:13:11');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `skills`
 --
 
@@ -295,6 +424,33 @@ ALTER TABLE `certificates`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `chat_admin_status`
+--
+ALTER TABLE `chat_admin_status`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `chat_blocked_entities`
+--
+ALTER TABLE `chat_blocked_entities`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `type_value` (`type`,`value`);
+
+--
+-- Indexes for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `session_id` (`session_id`);
+
+--
+-- Indexes for table `chat_sessions`
+--
+ALTER TABLE `chat_sessions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `session_token` (`session_token`);
+
+--
 -- Indexes for table `contact_inquiries`
 --
 ALTER TABLE `contact_inquiries`
@@ -332,6 +488,12 @@ ALTER TABLE `portfolios`
   ADD PRIMARY KEY (`id`);
 
 --
+-- Indexes for table `seo_settings`
+--
+ALTER TABLE `seo_settings`
+  ADD PRIMARY KEY (`id`);
+
+--
 -- Indexes for table `skills`
 --
 ALTER TABLE `skills`
@@ -360,16 +522,34 @@ ALTER TABLE `certificates`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
+-- AUTO_INCREMENT for table `chat_blocked_entities`
+--
+ALTER TABLE `chat_blocked_entities`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `chat_messages`
+--
+ALTER TABLE `chat_messages`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
+
+--
+-- AUTO_INCREMENT for table `chat_sessions`
+--
+ALTER TABLE `chat_sessions`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
 -- AUTO_INCREMENT for table `contact_inquiries`
 --
 ALTER TABLE `contact_inquiries`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `contact_inquiries_files`
 --
 ALTER TABLE `contact_inquiries_files`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `education`
@@ -394,6 +574,12 @@ ALTER TABLE `personal_info`
 --
 ALTER TABLE `portfolios`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
+
+--
+-- AUTO_INCREMENT for table `seo_settings`
+--
+ALTER TABLE `seo_settings`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `skills`

@@ -11,6 +11,13 @@ const MIME_TYPES = {
   ".webp": "image/webp",
   ".svg": "image/svg+xml",
   ".txt": "text/plain",
+  ".doc": "application/msword",
+  ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  ".xls": "application/vnd.ms-excel",
+  ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ".zip": "application/zip",
+  ".rar": "application/vnd.rar",
+  ".csv": "text/csv",
 };
 
 export async function GET(request, { params }) {
@@ -49,12 +56,13 @@ export async function GET(request, { params }) {
     const fileBuffer = fs.readFileSync(foundPath);
     const ext = path.extname(foundPath).toLowerCase();
     const contentType = MIME_TYPES[ext] || "application/octet-stream";
+    const filename = path.basename(foundPath);
 
     return new NextResponse(fileBuffer, {
       headers: {
         "Content-Type": contentType,
         "Cache-Control": "public, max-age=31536000, immutable",
-        "Content-Disposition": ext === ".pdf" ? "inline" : undefined,
+        "Content-Disposition": (ext === ".pdf" || ext.startsWith(".jpg") || ext === ".png") ? "inline" : `attachment; filename="${filename}"`,
       },
     });
   } catch (error) {

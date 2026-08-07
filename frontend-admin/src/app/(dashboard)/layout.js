@@ -41,6 +41,8 @@ export default function DashboardLayout({ children }) {
   const navLinks = [
     { href: "/", label: "Dashboard", icon: "bi-speedometer2" },
     { href: "/profile", label: "Profile Info", icon: "bi-person-gear" },
+    { href: "/seo-settings", label: "SEO Settings", icon: "bi-search-heart" },
+    { href: "/live-chat", label: "Live Chat", icon: "bi-chat-dots" },
     { href: "/portfolios", label: "Portfolios", icon: "bi-briefcase" },
     { href: "/blogs", label: "Blogs/Articles", icon: "bi-newspaper" },
     { href: "/cv-sections", label: "CV Sections", icon: "bi-list-stars" },

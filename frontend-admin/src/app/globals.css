@@ -19,6 +19,16 @@ body {
   font-size: 0.95rem;
 }
 
+/* Attachment Caption Contrast Fix */
+.attachment-caption,
+.message-rich-content .attachment-caption {
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  font-style: normal !important;
+  font-size: 0.95rem !important;
+}
+
 .admin-shell {
   min-height: 100vh;
   display: flex;

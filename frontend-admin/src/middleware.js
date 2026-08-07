@@ -39,6 +39,8 @@ export const config = {
   matcher: [
     "/",
     "/profile/:path*",
+    "/seo-settings/:path*",
+    "/live-chat/:path*",
     "/blogs/:path*",
     "/portfolios/:path*",
     "/cv-sections/:path*",
@@ -46,6 +48,8 @@ export const config = {
     "/api/blogs/:path*",
     "/api/portfolios/:path*",
     "/api/profile/:path*",
+    "/api/seo-settings/:path*",
+    "/api/chat/:path*",
     "/api/experiences/:path*",
     "/api/education/:path*",
     "/api/certificates/:path*",
