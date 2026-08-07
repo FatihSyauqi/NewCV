@@ -203,8 +203,8 @@ export default function LiveChatClient() {
       if (!mounted) return;
       try {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.host;
-        ws = new WebSocket(`${protocol}//${host}/ws-admin`);
+        const hostname = window.location.hostname;
+        ws = new WebSocket(`${protocol}//${hostname}:3003`);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -313,6 +313,11 @@ export default function LiveChatClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_id: activeSessionId, action: "typing" })
       }).catch(() => { });
+
+      // Send instant WS signal to visitor
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "admin_typing", sessionId: activeSessionId, typing: true }));
+      }
     }
   };
 
@@ -504,6 +509,10 @@ export default function LiveChatClient() {
       setQuotedMessages([]);
 
       isUserScrolledUpRef.current = false;
+
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "admin_message_sent", sessionId: activeSessionId }));
+      }
 
       fetchMessages(activeSessionId);
       fetchSessions();

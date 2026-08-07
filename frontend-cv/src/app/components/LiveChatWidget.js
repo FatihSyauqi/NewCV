@@ -231,8 +231,8 @@ export default function LiveChatWidget() {
       if (!mounted) return;
       try {
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        const host = window.location.host;
-        ws = new WebSocket(`${protocol}//${host}/ws-cv`);
+        const hostname = window.location.hostname;
+        ws = new WebSocket(`${protocol}//${hostname}:3003`);
         wsRef.current = ws;
 
         ws.onopen = () => {
@@ -333,6 +333,11 @@ export default function LiveChatWidget() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ session_token: sessionToken, action: "typing" })
       }).catch(() => { });
+
+      // Send instant WS signal to admin
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "visitor_typing", token: sessionToken, typing: true }));
+      }
     }
   };
 
@@ -555,6 +560,10 @@ export default function LiveChatWidget() {
       setQuotedMessages([]);
 
       isUserScrolledUpRef.current = false;
+
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: "visitor_message_sent", token: sessionToken }));
+      }
 
       const msgRes = await fetch(`/api/chat/messages?token=${sessionToken}`);
       if (msgRes.ok) {

@@ -142,39 +142,116 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  // Attach WebSocket server in noServer mode, then intercept upgrades on /ws-admin path
-  // This avoids conflict with Next.js HMR WebSocket connections
-  const wss = new WebSocketServer({ noServer: true });
+  // Launch WebSocket server on dedicated port 3003
+  // This completely avoids any conflict with Next.js HMR upgrade listeners
+  const wss = new WebSocketServer({ port: 3003 });
 
   // Expose globally
   global.adminWss = wss;
 
-  server.on("upgrade", (req, socket, head) => {
-    const pathname = parse(req.url).pathname;
-    // Only handle our custom WS path; let Next.js handle everything else (HMR, etc.)
-    if (pathname === "/ws-admin") {
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        wss.emit("connection", ws, req);
-      });
+  // Helper: get session ID from token
+  async function getSessionIdByToken(token) {
+    try {
+      const res = await dbQuery("SELECT id FROM chat_sessions WHERE session_token = ? LIMIT 1", [token]);
+      return res?.[0]?.id || null;
+    } catch (_) {
+      return null;
     }
-    // All other upgrade requests (e.g. Next.js HMR) pass through untouched
-  });
+  }
+
+  // Helper: get session token from ID
+  async function getSessionTokenById(id) {
+    try {
+      const res = await dbQuery("SELECT session_token FROM chat_sessions WHERE id = ? LIMIT 1", [id]);
+      return res?.[0]?.session_token || null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   wss.on("connection", (ws) => {
     ws.subscribedSession = null;
+    ws.visitorToken = null;
 
-    ws.on("message", (raw) => {
+    ws.on("message", async (raw) => {
       try {
         const msg = JSON.parse(raw.toString());
+        
+        // Admin subscribe to active session
         if (msg.type === "subscribe_session") {
           ws.subscribedSession = msg.sessionId;
-          // Seed count so first poll does not false-trigger
           if (msg.sessionId) {
             sessionMsgCount.set(String(msg.sessionId), -1);
           }
         }
+        
+        // Visitor subscribe to session token
+        else if (msg.type === "subscribe") {
+          ws.visitorToken = msg.token;
+        }
+
+        // Instant notification: Visitor sent a message
+        else if (msg.type === "visitor_message_sent") {
+          const sid = await getSessionIdByToken(msg.token);
+          if (sid) {
+            // Notify all admins to reload sessions and messages
+            const adminMsg = JSON.stringify({ type: "sessions_update" });
+            const detailMsg = JSON.stringify({ type: "messages_update", sessionId: sid });
+            wss.clients.forEach((client) => {
+              if (client.readyState === OPEN) {
+                if (client.subscribedSession) {
+                  client.send(adminMsg);
+                  if (String(client.subscribedSession) === String(sid)) {
+                    client.send(detailMsg);
+                  }
+                } else if (!client.visitorToken) {
+                  client.send(adminMsg);
+                }
+              }
+            });
+          }
+        }
+
+        // Instant notification: Admin sent a message
+        else if (msg.type === "admin_message_sent") {
+          const token = await getSessionTokenById(msg.sessionId);
+          if (token) {
+            // Notify the specific visitor client
+            const data = JSON.stringify({ type: "messages_update" });
+            wss.clients.forEach((client) => {
+              if (client.readyState === OPEN && client.visitorToken === token) {
+                client.send(data);
+              }
+            });
+          }
+        }
+
+        // Instant notification: Visitor typing status
+        else if (msg.type === "visitor_typing") {
+          // Broadcast session update to admins instantly to update typing indicator spinner
+          const data = JSON.stringify({ type: "sessions_update" });
+          wss.clients.forEach((client) => {
+            if (client.readyState === OPEN && !client.visitorToken) {
+              client.send(data);
+            }
+          });
+        }
+
+        // Instant notification: Admin typing status
+        else if (msg.type === "admin_typing") {
+          const token = await getSessionTokenById(msg.sessionId);
+          if (token) {
+            const data = JSON.stringify({ type: "admin_typing", typing: !!msg.typing });
+            wss.clients.forEach((client) => {
+              if (client.readyState === OPEN && client.visitorToken === token) {
+                client.send(data);
+              }
+            });
+          }
+        }
+
       } catch (_) {
-        // ignore malformed messages
+        // ignore malformed
       }
     });
 
@@ -191,7 +268,7 @@ app.prepare().then(() => {
     ws.send(JSON.stringify({ type: "connected" }));
   });
 
-  // Start DB polling loop every 2 seconds
+  // Keep background polling loop at 2 seconds as a secondary fallback
   setInterval(() => pollAndBroadcast(wss), 2000);
 
   server.listen(port, () => {

@@ -131,60 +131,9 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  // noServer mode — only handle upgrades on /ws-cv to avoid conflict with Next.js HMR
-  const wss = new WebSocketServer({ noServer: true });
-
-  // Expose globally
-  global.cvWss = wss;
-
-  server.on("upgrade", (req, socket, head) => {
-    const pathname = parse(req.url).pathname;
-    if (pathname === "/ws-cv") {
-      wss.handleUpgrade(req, socket, head, (ws) => {
-        wss.emit("connection", ws, req);
-      });
-    }
-    // Next.js HMR and other upgrades pass through untouched
-  });
-
-  wss.on("connection", (ws) => {
-    ws.sessionToken = null;
-
-    ws.on("message", (raw) => {
-      try {
-        const msg = JSON.parse(raw.toString());
-        if (msg.type === "subscribe") {
-          ws.sessionToken = msg.token;
-          // Seed count so first poll does not false-trigger
-          if (msg.token) {
-            tokenMsgCount.set(msg.token, -1);
-          }
-        }
-      } catch (_) {
-        // ignore malformed
-      }
-    });
-
-    ws.on("error", () => {});
-    ws.on("close", () => {});
-
-    // Keep-alive ping every 30s
-    const pingTimer = setInterval(() => {
-      if (ws.readyState === OPEN) ws.send(JSON.stringify({ type: "ping" }));
-    }, 30000);
-    ws.on("close", () => clearInterval(pingTimer));
-
-    // Acknowledge connection
-    ws.send(JSON.stringify({ type: "connected" }));
-  });
-
-  // Start polling loop every 2 seconds
-  setInterval(() => pollAndBroadcast(wss), 2000);
-
   server.listen(port, () => {
     console.log(
       `> CV server ready (${dev ? "dev" : "production"}) on http://localhost:${port}`
     );
-    console.log(`> WebSocket server attached on ws://localhost:${port}`);
   });
 });
