@@ -646,6 +646,34 @@ export default function LiveChatWidget() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  const formatDateLabel = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    const now = new Date();
+
+    const isToday =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday =
+      d.getDate() === yesterday.getDate() &&
+      d.getMonth() === yesterday.getMonth() &&
+      d.getFullYear() === yesterday.getFullYear();
+
+    if (isToday) return "Hari ini";
+    if (isYesterday) return "Kemarin";
+
+    return d.toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  };
+
   const unreadCount = sessionData?.unread_user || 0;
   const isSessionClosed = sessionData?.status === "closed";
   const isSessionBlocked = sessionData?.status === "blocked";
@@ -715,10 +743,10 @@ export default function LiveChatWidget() {
               </div>
               <div>
                 <h6 className="mb-0 fw-bold text-white" style={{ fontSize: "15px", lineHeight: "1.2" }}>
-                  Live Chat
+                  Chat with Fatih
                 </h6>
                 <small className="text-white fw-medium d-block" style={{ fontSize: "11px", opacity: 0.92, lineHeight: "1.3" }}>
-                  Fatih Syauqi • Senior Software Engineer
+                  Senior Software Engineer
                 </small>
               </div>
             </div>
@@ -798,7 +826,7 @@ export default function LiveChatWidget() {
                         >
                           <div className="d-flex align-items-center justify-content-between mb-1">
                             <span className="fw-bold text-dark text-truncate" style={{ fontSize: "13px", maxWidth: "200px" }}>
-                              {getLastMessagePreview(s)}
+                              {s.full_name} ({s.email})
                             </span>
                             <small className="text-muted" style={{ fontSize: "10px" }}>
                               {new Date(s.updated_at).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
@@ -806,7 +834,7 @@ export default function LiveChatWidget() {
                           </div>
                           <div className="d-flex align-items-center justify-content-between mt-1">
                             <small className="text-muted text-truncate" style={{ fontSize: "11px", maxWidth: "220px" }}>
-                              {s.full_name} ({s.email})
+                              {getLastMessagePreview(s)}
                             </small>
                             <span
                               className={`badge ${s.status === "active"
@@ -951,142 +979,166 @@ export default function LiveChatWidget() {
                       Belum ada pesan. Ketik pesan Anda di bawah.
                     </div>
                   ) : (
-                    messages.map((msg) => {
+                    messages.map((msg, index) => {
                       const isUser = msg.sender_type === "user";
                       const cleanHtml = sanitizeHtml(msg.message_html);
 
+                      const msgDateLabel = formatDateLabel(msg.created_at);
+                      const prevMsgDateLabel = index > 0 ? formatDateLabel(messages[index - 1].created_at) : null;
+                      const showDateDivider = index === 0 || msgDateLabel !== prevMsgDateLabel;
+
                       return (
-                        <div
-                          key={msg.id}
-                          className={`d-flex flex-column mb-3 position-relative group-chat-item ${isUser ? "align-items-end" : "align-items-start"}`}
-                        >
-                          <div className="d-flex align-items-center gap-2 mb-1 px-1">
-                            <small className="fw-semibold text-slate-700" style={{ fontSize: "11px", color: "#475569" }}>
-                              {msg.sender_name}
-                            </small>
-                            {!isSessionClosed && !isSessionBlocked && (
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-link text-primary p-0 ms-1 text-decoration-none d-inline-flex align-items-center gap-0.5 opacity-80 hover-opacity-100"
-                                onClick={() => handleQuoteMessage(msg)}
-                                title="Reply / Kutip Pesan Ini"
-                                style={{ fontSize: "11px", lineHeight: "1" }}
+                        <div key={msg.id || index}>
+                          {/* Date Divider Badge (Hari ini, Kemarin, Senin 10 Agustus 2026, dll.) */}
+                          {showDateDivider && (
+                            <div className="d-flex align-items-center justify-content-center my-3">
+                              <span
+                                className="badge bg-white text-secondary border shadow-2xs px-3 py-1.5 rounded-pill font-weight-semibold"
+                                style={{
+                                  fontSize: "11.5px",
+                                  color: "#54656f",
+                                  borderColor: "#e2e8f0",
+                                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                                  letterSpacing: "0.2px"
+                                }}
                               >
-                                <i className="bi bi-reply-fill"></i>
-                                <span>Reply</span>
-                              </button>
-                            )}
-                          </div>
+                                {msgDateLabel}
+                              </span>
+                            </div>
+                          )}
 
-                          {/* WhatsApp Style Bubble with Font Warna Hitam */}
                           <div
-                            className="shadow-xs border"
-                            style={{
-                              maxWidth: "88%",
-                              fontSize: "0.92rem",
-                              lineHeight: "1.5",
-                              background: isUser ? "#d9fdd3" : "#ffffff",
-                              color: "#1e293b",
-                              borderColor: isUser ? "#d9fdd3" : "#e2e8f0",
-                              borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                              padding: "6px 10px 6px 12px",
-                              minWidth: "85px",
-                              display: "inline-block"
-                            }}
+                            key={msg.id}
+                            className={`d-flex flex-column mb-3 position-relative group-chat-item ${isUser ? "align-items-end" : "align-items-start"}`}
                           >
-                            {/* Inject CSS override to display editor paragraphs inline inside chat bubbles */}
-                            <style dangerouslySetInnerHTML={{
-                              __html: `
-                              .message-rich-content, .message-rich-content p {
-                                display: inline !important;
-                                margin: 0 !important;
-                              }
-                            `}} />
+                            <div className="d-flex align-items-center gap-2 mb-1 px-1">
+                              <small className="fw-semibold text-slate-700" style={{ fontSize: "11px", color: "#475569" }}>
+                                {msg.sender_name}
+                              </small>
+                              {!isSessionClosed && !isSessionBlocked && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-link text-primary p-0 ms-1 text-decoration-none d-inline-flex align-items-center gap-0.5 opacity-80 hover-opacity-100"
+                                  onClick={() => handleQuoteMessage(msg)}
+                                  title="Reply / Kutip Pesan Ini"
+                                  style={{ fontSize: "11px", lineHeight: "1" }}
+                                >
+                                  <i className="bi bi-reply-fill"></i>
+                                  <span>Reply</span>
+                                </button>
+                              )}
+                            </div>
 
-                            {/* Rich Text Sanitized HTML Body */}
-                            {cleanHtml && (
-                              <div
-                                className="message-rich-content"
-                                style={{ color: "#1e293b" }}
-                                dangerouslySetInnerHTML={{ __html: cleanHtml }}
-                              />
-                            )}
-
-                            {/* Attachment Card */}
-                            {msg.attachment_url && (
-                              <div className="mt-2 pt-2 border-top border-slate-200 d-block" style={{ display: "block" }}>
-                                {isImageFile(msg.attachment_url) ? (
-                                  <div>
-                                    <img
-                                      src={msg.attachment_url}
-                                      alt={msg.attachment_name || "Attachment"}
-                                      className="img-fluid rounded border shadow-xs cursor-pointer"
-                                      style={{ maxHeight: "200px", objectFit: "cover" }}
-                                      onClick={() => setPreviewFile({ url: msg.attachment_url, name: msg.attachment_name || "Gambar", size: msg.attachment_size })}
-                                      title="Klik untuk memperbesar gambar"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="p-2.5 rounded-3 bg-slate-50 text-slate-800 border shadow-2xs">
-                                    <div className="d-flex align-items-center gap-2 mb-2">
-                                      <i className="bi bi-file-earmark-text-fill fs-4 text-primary"></i>
-                                      <div className="text-truncate" style={{ maxWidth: "160px" }}>
-                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: "12px" }}>{msg.attachment_name || "File Document"}</div>
-                                        <small className="text-muted fw-semibold" style={{ fontSize: "10px" }}>{formatFileSize(msg.attachment_size)}</small>
-                                      </div>
-                                    </div>
-                                    <div className="d-flex align-items-center gap-1.5">
-                                      <button
-                                        type="button"
-                                        className="btn btn-xs btn-outline-primary fw-semibold rounded-pill py-0.5 px-2.5"
-                                        style={{ fontSize: "11px" }}
-                                        onClick={() => setPreviewFile({ url: msg.attachment_url, name: msg.attachment_name || "Dokumen", size: msg.attachment_size })}
-                                      >
-                                        <i className="bi bi-eye-fill me-1"></i> Preview
-                                      </button>
-                                      <a
-                                        href={msg.attachment_url}
-                                        download
-                                        className="btn btn-xs btn-outline-secondary fw-semibold rounded-pill py-0.5 px-2.5"
-                                        style={{ fontSize: "11px" }}
-                                      >
-                                        <i className="bi bi-download me-1"></i> Download
-                                      </a>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Bottom Right timestamp & flags */}
-                            <span
-                              className="d-inline-flex align-items-center gap-1 text-muted"
+                            {/* WhatsApp Style Bubble with Font Warna Hitam */}
+                            <div
+                              className="shadow-xs border"
                               style={{
-                                fontSize: "10px",
-                                color: "#667781",
-                                userSelect: "none",
-                                marginLeft: "8px",
-                                marginTop: "4px",
-                                float: "right",
-                                verticalAlign: "bottom"
+                                maxWidth: "88%",
+                                fontSize: "0.92rem",
+                                lineHeight: "1.5",
+                                background: isUser ? "#d9fdd3" : "#ffffff",
+                                color: "#1e293b",
+                                borderColor: isUser ? "#d9fdd3" : "#e2e8f0",
+                                borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+                                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                                padding: "6px 10px 6px 12px",
+                                minWidth: "85px",
+                                display: "inline-block"
                               }}
                             >
-                              <span>
-                                {new Date(msg.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
-                              </span>
-                              {isUser && (
-                                <span className="d-inline-flex align-items-center" style={{ lineHeight: "1" }}>
-                                  {msg.sending ? (
-                                    <i className="bi bi-clock text-muted" style={{ fontSize: "9px" }} title="Menunggu terkirim..."></i>
-                                  ) : msg.is_read ? (
-                                    <i className="bi bi-check2-all text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Dibaca"></i>
-                                  ) : (
-                                    <i className="bi bi-check2 text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Terkirim"></i>
-                                  )}
-                                </span>
+                              {/* Inject CSS override to display editor paragraphs inline inside chat bubbles */}
+                              <style dangerouslySetInnerHTML={{
+                                __html: `
+                                .message-rich-content, .message-rich-content p {
+                                  display: inline !important;
+                                  margin: 0 !important;
+                                }
+                              `}} />
+
+                              {/* Rich Text Sanitized HTML Body */}
+                              {cleanHtml && (
+                                <div
+                                  className="message-rich-content"
+                                  style={{ color: "#1e293b" }}
+                                  dangerouslySetInnerHTML={{ __html: cleanHtml }}
+                                />
                               )}
-                            </span>
+
+                              {/* Attachment Card */}
+                              {msg.attachment_url && (
+                                <div className="mt-2 pt-2 border-top border-slate-200 d-block" style={{ display: "block" }}>
+                                  {isImageFile(msg.attachment_url) ? (
+                                    <div>
+                                      <img
+                                        src={msg.attachment_url}
+                                        alt={msg.attachment_name || "Attachment"}
+                                        className="img-fluid rounded border shadow-xs cursor-pointer"
+                                        style={{ maxHeight: "200px", objectFit: "cover" }}
+                                        onClick={() => setPreviewFile({ url: msg.attachment_url, name: msg.attachment_name || "Gambar", size: msg.attachment_size })}
+                                        title="Klik untuk memperbesar gambar"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="p-2.5 rounded-3 bg-slate-50 text-slate-800 border shadow-2xs">
+                                      <div className="d-flex align-items-center gap-2 mb-2">
+                                        <i className="bi bi-file-earmark-text-fill fs-4 text-primary"></i>
+                                        <div className="text-truncate" style={{ maxWidth: "160px" }}>
+                                          <div className="fw-bold text-dark text-truncate" style={{ fontSize: "12px" }}>{msg.attachment_name || "File Document"}</div>
+                                          <small className="text-muted fw-semibold" style={{ fontSize: "10px" }}>{formatFileSize(msg.attachment_size)}</small>
+                                        </div>
+                                      </div>
+                                      <div className="d-flex align-items-center gap-1.5">
+                                        <button
+                                          type="button"
+                                          className="btn btn-xs btn-outline-primary fw-semibold rounded-pill py-0.5 px-2.5"
+                                          style={{ fontSize: "11px" }}
+                                          onClick={() => setPreviewFile({ url: msg.attachment_url, name: msg.attachment_name || "Dokumen", size: msg.attachment_size })}
+                                        >
+                                          <i className="bi bi-eye-fill me-1"></i> Preview
+                                        </button>
+                                        <a
+                                          href={msg.attachment_url}
+                                          download
+                                          className="btn btn-xs btn-outline-secondary fw-semibold rounded-pill py-0.5 px-2.5"
+                                          style={{ fontSize: "11px" }}
+                                        >
+                                          <i className="bi bi-download me-1"></i> Download
+                                        </a>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Bottom Right timestamp & flags */}
+                              <span
+                                className="d-inline-flex align-items-center gap-1 text-muted"
+                                style={{
+                                  fontSize: "10px",
+                                  color: "#667781",
+                                  userSelect: "none",
+                                  marginLeft: "8px",
+                                  marginTop: "4px",
+                                  float: "right",
+                                  verticalAlign: "bottom"
+                                }}
+                              >
+                                <span>
+                                  {new Date(msg.created_at).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                                {isUser && (
+                                  <span className="d-inline-flex align-items-center" style={{ lineHeight: "1" }}>
+                                    {msg.sending ? (
+                                      <i className="bi bi-clock text-muted" style={{ fontSize: "9px" }} title="Menunggu terkirim..."></i>
+                                    ) : msg.is_read ? (
+                                      <i className="bi bi-check2-all text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Dibaca"></i>
+                                    ) : (
+                                      <i className="bi bi-check2 text-success fw-bold" style={{ fontSize: "13px", color: "#22c55e" }} title="Terkirim"></i>
+                                    )}
+                                  </span>
+                                )}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -1306,38 +1358,115 @@ export default function LiveChatWidget() {
         </button>
       )}
 
-      {/* ── File Preview Modal Popup ── */}
+      {/* ── WhatsApp Web Style Media Viewer Modal ── */}
       {previewFile && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 10500 }}>
-          <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: "92%", maxWidth: "500px", maxHeight: "80vh" }}>
-            <div className="p-3 text-white d-flex align-items-center justify-content-between" style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}>
-              <h6 className="mb-0 text-truncate text-white fw-bold" style={{ maxWidth: "80%" }}>
-                <i className="bi bi-file-earmark-text me-2"></i> {previewFile.name}
-              </h6>
-              <button type="button" className="btn-close btn-close-white" onClick={() => setPreviewFile(null)}></button>
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-0"
+          style={{
+            zIndex: 10600,
+            backgroundColor: "rgba(11, 20, 26, 0.96)",
+            backdropFilter: "blur(6px)"
+          }}
+        >
+          {/* Top Header Bar */}
+          <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-secondary border-opacity-25" style={{ background: "rgba(11, 20, 26, 0.85)" }}>
+            <div className="d-flex align-items-center gap-3 text-white min-w-0">
+              <div className="bg-primary text-white rounded-circle fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: "40px", height: "40px", fontSize: "16px" }}>
+                F
+              </div>
+              <div className="min-w-0">
+                <h6 className="mb-0 text-white fw-bold text-truncate" style={{ fontSize: "15px", letterSpacing: "-0.2px" }}>
+                  {previewFile.name}
+                </h6>
+                <small className="text-white-50 d-block text-truncate" style={{ fontSize: "12px" }}>
+                  Fatih Syauqi {previewFile.size ? `• ${formatFileSize(previewFile.size)}` : ''}
+                </small>
+              </div>
             </div>
-            <div className="p-3 bg-light overflow-y-auto d-flex align-items-center justify-content-center" style={{ minHeight: "260px", maxHeight: "calc(80vh - 120px)" }}>
-              {isImageFile(previewFile.url) ? (
-                <img src={previewFile.url} alt={previewFile.name} className="img-fluid rounded shadow-sm" style={{ maxHeight: "360px", objectFit: "contain" }} />
-              ) : previewFile.url.endsWith(".pdf") ? (
-                <iframe src={previewFile.url} title={previewFile.name} width="100%" height="350px" className="border rounded" />
-              ) : (
-                <div className="text-center p-4">
-                  <i className="bi bi-file-earmark-word-fill text-primary display-3 mb-3"></i>
-                  <h6 className="fw-bold">{previewFile.name}</h6>
-                  <p className="text-muted small mb-3">File ini tidak mendukung pratinjau langsung di browser. Silakan unduh file untuk membukanya.</p>
-                  <a href={previewFile.url} download className="btn btn-primary rounded-pill px-4">
-                    <i className="bi bi-download me-1.5"></i> Download File ({formatFileSize(previewFile.size)})
+
+            <div className="d-flex align-items-center gap-2">
+              {!isImageFile(previewFile.url) && (
+                <a
+                  href={previewFile.url}
+                  download
+                  className="btn btn-outline-light btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1.5 opacity-90 hover-opacity-100"
+                  title="Unduh File Dokumen"
+                >
+                  <i className="bi bi-download"></i>
+                  <span className="d-none d-sm-inline">Unduh</span>
+                </a>
+              )}
+              <button
+                type="button"
+                className="btn btn-link text-white p-2 border-0 shadow-none opacity-75 hover-opacity-100"
+                onClick={() => setPreviewFile(null)}
+                title="Tutup Pratinjau"
+              >
+                <i className="bi bi-x-lg fs-4"></i>
+              </button>
+            </div>
+          </div>
+
+          {/* Center Main Preview Area */}
+          <div className="flex-grow-1 d-flex align-items-center justify-content-center p-3 overflow-hidden position-relative">
+            {isImageFile(previewFile.url) ? (
+              <img
+                src={previewFile.url}
+                alt={previewFile.name}
+                className="img-fluid rounded-3 shadow-lg"
+                style={{
+                  maxHeight: "82vh",
+                  maxWidth: "92vw",
+                  objectFit: "contain",
+                  userSelect: "none"
+                }}
+              />
+            ) : previewFile.url?.endsWith(".pdf") || previewFile.name?.toLowerCase().endsWith(".pdf") ? (
+              <div className="w-100 h-100 d-flex align-items-center justify-content-center p-2 p-md-3">
+                <div
+                  className="bg-white rounded-4 shadow-lg overflow-hidden w-100 h-100 d-flex flex-column"
+                  style={{ maxWidth: "1100px", maxHeight: "84vh" }}
+                >
+                  <iframe
+                    src={previewFile.url}
+                    title={previewFile.name}
+                    className="w-100 h-100 border-0"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 p-md-5 rounded-4 text-center shadow-lg border" style={{ maxWidth: "480px", width: "90%" }}>
+                <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow-xs" style={{ width: "76px", height: "76px" }}>
+                  <i className="bi bi-file-earmark-text-fill display-5"></i>
+                </div>
+                <span className="badge bg-primary-subtle text-primary fw-bold text-uppercase px-3 py-1 rounded-pill mb-2" style={{ fontSize: "11px" }}>
+                  {previewFile.name?.split('.').pop()?.toUpperCase() || "DOKUMEN"}
+                </span>
+                <h5 className="fw-bold text-dark mb-2 text-break" style={{ letterSpacing: "-0.3px" }}>
+                  {previewFile.name}
+                </h5>
+                <p className="text-muted small mb-4" style={{ fontSize: "13px" }}>
+                  Ukuran File: <strong>{formatFileSize(previewFile.size)}</strong>
+                </p>
+
+                <div className="d-flex align-items-center justify-content-center gap-2">
+                  <a
+                    href={previewFile.url}
+                    download
+                    className="btn btn-primary rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
+                    style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", border: "none" }}
+                  >
+                    <i className="bi bi-download fs-6"></i>
+                    <span>Unduh File Dokumen</span>
                   </a>
                 </div>
-              )}
-            </div>
-            <div className="p-2.5 bg-white border-top text-end">
-              <a href={previewFile.url} download className="btn btn-sm btn-primary rounded-pill me-2 px-3">
-                <i className="bi bi-download me-1"></i> Download
-              </a>
-              <button type="button" className="btn btn-sm btn-secondary rounded-pill px-3" onClick={() => setPreviewFile(null)}>Tutup</button>
-            </div>
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Footer Bar (Kosong tanpa tombol download untuk gambar) */}
+          <div className="px-4 py-2 text-center text-white-50 border-top border-secondary border-opacity-10" style={{ background: "rgba(11, 20, 26, 0.85)" }}>
+            <span style={{ fontSize: "12px" }}>{previewFile.name}</span>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Custom Next.js Server — frontend-admin
- * Runs Next.js + WebSocket Server on the same port (3002).
+ * Runs Next.js + WebSocket Server on the same port (4002).
  * WebSocket server polls DB every 2s for session/message changes
  * and pushes real-time notifications to all connected admin clients.
  */
@@ -36,7 +36,7 @@ function loadEnv() {
 loadEnv();
 
 const dev = process.env.NODE_ENV !== "production";
-const port = parseInt(process.env.PORT || "3002", 10);
+const port = parseInt(process.env.PORT || "4002", 10);
 
 // ── DB Query Helper (CommonJS version) ────────────────────────────────────
 async function dbQuery(sql, params = []) {
@@ -176,7 +176,7 @@ app.prepare().then(() => {
     ws.on("message", async (raw) => {
       try {
         const msg = JSON.parse(raw.toString());
-        
+
         // Admin subscribe to active session
         if (msg.type === "subscribe_session") {
           ws.subscribedSession = msg.sessionId;
@@ -184,7 +184,7 @@ app.prepare().then(() => {
             sessionMsgCount.set(String(msg.sessionId), -1);
           }
         }
-        
+
         // Visitor subscribe to session token
         else if (msg.type === "subscribe") {
           ws.visitorToken = msg.token;
@@ -255,8 +255,8 @@ app.prepare().then(() => {
       }
     });
 
-    ws.on("error", () => {});
-    ws.on("close", () => {});
+    ws.on("error", () => { });
+    ws.on("close", () => { });
 
     // Keep-alive ping every 30s
     const pingTimer = setInterval(() => {

@@ -43,12 +43,15 @@ export default function LiveChatClient() {
   const [uploading, setUploading] = useState(false);
 
   // Responsiveness & Dropdown Action state
-  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(true);
   const [showActionDropdown, setShowActionDropdown] = useState(false);
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
+  const [showVisitorInfoModal, setShowVisitorInfoModal] = useState(false);
 
   // Dynamic API URL Helper (Handles basePath '/AdminFSyauqi' dynamically in dev and prod)
   const getApiUrl = (path) => {
+    if (!path) return "";
+    if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("data:")) return path;
     if (typeof window !== "undefined") {
       const isBaseAdmin = window.location.pathname.includes("/AdminFSyauqi");
       if (isBaseAdmin && !path.startsWith("/AdminFSyauqi")) {
@@ -137,17 +140,13 @@ export default function LiveChatClient() {
           playNotificationSound();
         }
         prevUnreadRef.current = totalUnread;
-
-        if (!activeSessionId && data.sessions.length > 0) {
-          setActiveSessionId(data.sessions[0].id);
-        }
       }
     } catch (err) {
       console.error("Fetch sessions error:", err);
     } finally {
       setLoading(false);
     }
-  }, [activeSessionId, playNotificationSound]);
+  }, [playNotificationSound]);
 
   // Fetch messages for active session & trigger audio on new incoming user message
   const fetchMessages = useCallback(async (sessionId) => {
@@ -666,6 +665,34 @@ export default function LiveChatClient() {
     return url;
   };
 
+  const formatDateLabel = (dateStr) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    const now = new Date();
+
+    const isToday =
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday =
+      d.getDate() === yesterday.getDate() &&
+      d.getMonth() === yesterday.getMonth() &&
+      d.getFullYear() === yesterday.getFullYear();
+
+    if (isToday) return "Hari ini";
+    if (isYesterday) return "Kemarin";
+
+    return d.toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+  };
+
   return (
     <div className="container-fluid p-0">
       {/* Main Chat Shell Layout - Flush to Top */}
@@ -673,11 +700,10 @@ export default function LiveChatClient() {
         <div className="row g-0 h-100">
           {/* ── LEFT SIDEBAR: SESSION LIST (Exact WhatsApp Web Desktop Layout) ── */}
           <div
-            className={`col-12 col-md-4 col-lg-3 border-end flex-column h-100 bg-white ${showMobileSidebar
-                ? "d-flex position-absolute top-0 start-0 w-100 h-100 shadow-lg"
+            className={`col-12 col-md-4 col-lg-3 border-end flex-column h-100 bg-white ${showMobileSidebar || !activeSessionId
+                ? "d-flex"
                 : "d-none d-md-flex"
               }`}
-            style={{ zIndex: showMobileSidebar ? 1050 : 1 }}
           >
             {/* Header Sidebar Exact WhatsApp Web Layout */}
             <div className="p-3 border-bottom bg-white">
@@ -942,7 +968,7 @@ export default function LiveChatClient() {
 
           {/* ── RIGHT MAIN PANEL: CHAT WINDOW ── */}
           <div
-            className="col-12 col-md-8 col-lg-9 d-flex flex-column h-100 bg-white position-relative"
+            className={`col-12 col-md-8 col-lg-9 flex-column h-100 bg-white position-relative ${!showMobileSidebar && activeSessionId ? "d-flex" : "d-none d-md-flex"}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
@@ -965,22 +991,28 @@ export default function LiveChatClient() {
                   className="p-3 text-white border-bottom d-flex align-items-center justify-content-between shadow-xs"
                   style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}
                 >
-                  <div className="d-flex align-items-center gap-3">
-                    {/* Mobile Sesi Toggle Button */}
+                  <div className="d-flex align-items-center gap-2.5 min-w-0">
+                    {/* Mobile Sesi Toggle Button - Panah Kiri (Tanpa Background Putih) */}
                     <button
                       type="button"
-                      className="btn btn-sm btn-light text-primary fw-bold d-md-none shadow-xs d-flex align-items-center gap-1 py-1 px-2"
+                      className="btn btn-link text-white p-1 border-0 shadow-none d-md-none me-1 flex-shrink-0 d-flex align-items-center justify-content-center text-decoration-none"
                       onClick={() => setShowMobileSidebar(true)}
-                      title="Lihat Daftar Sesi Chat"
+                      title="Kembali ke Daftar Sesi"
                     >
-                      <i className="bi bi-chat-left-text-fill"></i>
-                      <span>Sesi</span>
+                      <i className="bi bi-arrow-left fs-4 text-white"></i>
                     </button>
 
-                    <div className="bg-white text-primary rounded-circle fw-bold d-flex align-items-center justify-content-center shadow-xs flex-shrink-0" style={{ width: "42px", height: "42px" }}>
+                    <div
+                      className="bg-white text-primary rounded-circle fw-bold d-flex align-items-center justify-content-center shadow-xs flex-shrink-0"
+                      style={{ width: "42px", height: "42px", fontSize: "17px", cursor: "pointer", marginRight: "14px" }}
+                      onClick={() => setShowVisitorInfoModal(true)}
+                      title="Lihat Detail Informasi Pengunjung"
+                    >
                       {activeSession.full_name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
+
+                    {/* DESKTOP HEADER INFO (Full Inline IP, Email & Phone) */}
+                    <div className="d-none d-md-block">
                       <div className="d-flex align-items-center gap-2">
                         <h2 className="h6 fw-bold mb-0 text-white">{activeSession.full_name}</h2>
                         {activeSession.ip_address && (
@@ -988,6 +1020,11 @@ export default function LiveChatClient() {
                             IP: {activeSession.ip_address}
                           </span>
                         )}
+                        {activeSession.status === 'blocked' ? (
+                          <span className="badge bg-danger text-white rounded-pill px-2 py-0.5" style={{ fontSize: "10px" }}>Diblokir</span>
+                        ) : activeSession.status === 'closed' ? (
+                          <span className="badge bg-white text-secondary rounded-pill px-2 py-0.5" style={{ fontSize: "10px" }}>Sesi Ditutup</span>
+                        ) : null}
                       </div>
                       <div className="d-flex flex-wrap align-items-center gap-2 small text-white fw-medium" style={{ opacity: 0.95 }}>
                         <span><i className="bi bi-envelope me-1"></i>{activeSession.email}</span>
@@ -995,25 +1032,49 @@ export default function LiveChatClient() {
                         <span><i className="bi bi-telephone me-1"></i>{activeSession.phone_number}</span>
                       </div>
                     </div>
+
+                    {/* MOBILE HEADER INFO (Clean Name & Status Pill) */}
+                    <div className="d-block d-md-none min-w-0" style={{ cursor: "pointer" }} onClick={() => setShowVisitorInfoModal(true)}>
+                      <div className="d-flex align-items-center gap-2">
+                        <h2 className="h6 fw-bold mb-0 text-white text-truncate" style={{ fontSize: "16px", letterSpacing: "-0.2px" }}>
+                          {activeSession.full_name}
+                        </h2>
+                        {activeSession.status === 'blocked' ? (
+                          <span className="badge bg-danger text-white rounded-pill px-2 py-0.5 flex-shrink-0" style={{ fontSize: "10px" }}>Diblokir</span>
+                        ) : activeSession.status === 'closed' ? (
+                          <span className="badge bg-white text-secondary rounded-pill px-2 py-0.5 flex-shrink-0" style={{ fontSize: "10px" }}>Tutup</span>
+                        ) : (
+                          <span className="badge bg-success text-white rounded-pill px-2 py-0.5 flex-shrink-0" style={{ fontSize: "10px" }}>Aktif</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Header Action Dropdown Menu (Aksi) */}
-                  <div className="dropdown position-relative">
+                  {/* Header Action Dropdown Menu (Aksi - Icon Only "⋮") */}
+                  <div className="dropdown position-relative flex-shrink-0 ms-2">
                     <button
                       type="button"
-                      className="btn btn-sm btn-light text-primary fw-bold dropdown-toggle d-flex align-items-center gap-1.5 shadow-xs px-3 py-1.5 rounded-3 border-0"
+                      className="btn btn-link text-white p-1 border-0 shadow-none d-flex align-items-center justify-content-center text-decoration-none"
                       onClick={() => setShowActionDropdown(!showActionDropdown)}
-                      style={{ backgroundColor: "#ffffff", color: "#2563eb" }}
+                      title="Menu Aksi"
                     >
-                      <i className="bi bi-gear-fill"></i>
-                      <span>Aksi</span>
+                      <i className="bi bi-three-dots-vertical fs-4 text-white"></i>
                     </button>
 
                     {showActionDropdown && (
                       <div
                         className="dropdown-menu dropdown-menu-end show position-absolute end-0 mt-2 shadow-lg rounded-3 border-0 py-1.5 overflow-hidden"
-                        style={{ zIndex: 1060, minWidth: "200px", background: "#ffffff" }}
+                        style={{ zIndex: 1060, minWidth: "220px", background: "#ffffff" }}
                       >
+                        <button
+                          type="button"
+                          className="dropdown-item py-2 px-3 d-flex align-items-center gap-2 text-dark fw-semibold"
+                          onClick={() => { setShowActionDropdown(false); setShowVisitorInfoModal(true); }}
+                        >
+                          <i className="bi bi-person-vcard-fill fs-6 text-primary"></i>
+                          <span>Detail Info Pengunjung</span>
+                        </button>
+
                         <a
                           href={formatWaUrl(activeSession.phone_number)}
                           target="_blank"
@@ -1024,6 +1085,8 @@ export default function LiveChatClient() {
                           <i className="bi bi-whatsapp fs-6 text-success"></i>
                           <span>Chat WhatsApp</span>
                         </a>
+
+                        <div className="dropdown-divider my-1"></div>
 
                         {activeSession.status === 'blocked' ? (
                           <button
@@ -1044,7 +1107,6 @@ export default function LiveChatClient() {
                               <i className={`bi ${activeSession.status === 'active' ? 'bi-x-circle-fill text-secondary' : 'bi-check-circle-fill text-success'} fs-6`}></i>
                               <span>{activeSession.status === 'active' ? 'Tutup Sesi Chat' : 'Buka Kembali Sesi'}</span>
                             </button>
-                            <div className="dropdown-divider my-1"></div>
                             <button
                               type="button"
                               onClick={() => { setShowActionDropdown(false); handleBlockUser(); }}
@@ -1075,17 +1137,39 @@ export default function LiveChatClient() {
                   onScroll={handleChatScroll}
                   className="p-3 flex-grow-1 overflow-y-auto"
                   style={{
-                    backgroundImage: "linear-gradient(rgba(248, 250, 252, 0.90), rgba(248, 250, 252, 0.90)), url('/images/tech-doodles-bg.png')",
+                    backgroundImage: `linear-gradient(rgba(248, 250, 252, 0.90), rgba(248, 250, 252, 0.90)), url('${getApiUrl('/images/tech-doodles-bg.png')}')`,
                     backgroundSize: "cover",
                     backgroundPosition: "center"
                   }}
                 >
-                  {messages.map((msg) => {
+                  {messages.map((msg, index) => {
                     const isAdmin = msg.sender_type === "admin";
                     const cleanHtml = sanitizeHtml(msg.message_html);
                     const fileUrl = getAttachmentUrl(msg.attachment_url);
 
+                    const msgDateLabel = formatDateLabel(msg.created_at);
+                    const prevMsgDateLabel = index > 0 ? formatDateLabel(messages[index - 1].created_at) : null;
+                    const showDateDivider = index === 0 || msgDateLabel !== prevMsgDateLabel;
+
                     return (
+                      <div key={msg.id || index}>
+                        {/* Date Divider Badge (Hari ini, Kemarin, Senin 10 Agustus 2026, dll.) */}
+                        {showDateDivider && (
+                          <div className="d-flex align-items-center justify-content-center my-3">
+                            <span
+                              className="badge bg-white text-secondary border shadow-2xs px-3 py-1.5 rounded-pill font-weight-semibold"
+                              style={{
+                                fontSize: "11.5px",
+                                color: "#54656f",
+                                borderColor: "#e2e8f0",
+                                boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                                letterSpacing: "0.2px"
+                              }}
+                            >
+                              {msgDateLabel}
+                            </span>
+                          </div>
+                        )}
                       <div
                         key={msg.id}
                         className={`d-flex flex-column mb-3 position-relative ${isAdmin ? "align-items-end" : "align-items-start"}`}
@@ -1142,50 +1226,53 @@ export default function LiveChatClient() {
                           )}
 
                           {/* Attachment Card */}
-                          {msg.attachment_url && (
-                            <div className="mt-2 pt-2 border-top border-slate-200 d-block" style={{ display: "block" }}>
-                              {isImageFile(msg.attachment_url) ? (
-                                <div>
-                                  <img
-                                    src={fileUrl}
-                                    alt={msg.attachment_name || "Attachment"}
-                                    className="img-fluid rounded border shadow-xs cursor-pointer"
-                                    style={{ maxHeight: "220px", objectFit: "cover" }}
-                                    onClick={() => setPreviewFile({ url: fileUrl, name: msg.attachment_name || "Gambar", size: msg.attachment_size })}
-                                    title="Klik untuk memperbesar gambar"
-                                  />
-                                </div>
-                              ) : (
-                                <div className="p-2.5 rounded-3 bg-slate-50 text-slate-800 border shadow-2xs">
-                                  <div className="d-flex align-items-center gap-2 mb-2">
-                                    <i className="bi bi-file-earmark-text-fill fs-4 text-primary"></i>
-                                    <div className="text-truncate" style={{ maxWidth: "200px" }}>
-                                      <div className="fw-bold text-dark text-truncate" style={{ fontSize: "12px" }}>{msg.attachment_name || "File Document"}</div>
-                                      <small className="text-muted fw-semibold" style={{ fontSize: "10px" }}>{formatFileSize(msg.attachment_size)}</small>
+                          {msg.attachment_url && (() => {
+                            const fileUrl = getApiUrl(msg.attachment_url);
+                            return (
+                              <div className="mt-2 pt-2 border-top border-slate-200 d-block" style={{ display: "block" }}>
+                                {isImageFile(msg.attachment_url) ? (
+                                  <div>
+                                    <img
+                                      src={fileUrl}
+                                      alt={msg.attachment_name || "Attachment"}
+                                      className="img-fluid rounded border shadow-xs cursor-pointer"
+                                      style={{ maxHeight: "220px", objectFit: "cover" }}
+                                      onClick={() => setPreviewFile({ url: fileUrl, name: msg.attachment_name || "Gambar", size: msg.attachment_size })}
+                                      title="Klik untuk memperbesar gambar"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="p-2.5 rounded-3 bg-slate-50 text-slate-800 border shadow-2xs">
+                                    <div className="d-flex align-items-center gap-2 mb-2">
+                                      <i className="bi bi-file-earmark-text-fill fs-4 text-primary"></i>
+                                      <div className="text-truncate" style={{ maxWidth: "200px" }}>
+                                        <div className="fw-bold text-dark text-truncate" style={{ fontSize: "12px" }}>{msg.attachment_name || "File Document"}</div>
+                                        <small className="text-muted fw-semibold" style={{ fontSize: "10px" }}>{formatFileSize(msg.attachment_size)}</small>
+                                      </div>
+                                    </div>
+                                    <div className="d-flex align-items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        className="btn btn-xs btn-outline-primary fw-semibold rounded-pill py-0.5 px-2.5"
+                                        style={{ fontSize: "11px" }}
+                                        onClick={() => setPreviewFile({ url: fileUrl, name: msg.attachment_name || "Dokumen", size: msg.attachment_size })}
+                                      >
+                                        <i className="bi bi-eye-fill me-1"></i> Preview
+                                      </button>
+                                      <a
+                                        href={fileUrl}
+                                        download
+                                        className="btn btn-xs btn-outline-secondary fw-semibold rounded-pill py-0.5 px-2.5"
+                                        style={{ fontSize: "11px" }}
+                                      >
+                                        <i className="bi bi-download me-1"></i> Download
+                                      </a>
                                     </div>
                                   </div>
-                                  <div className="d-flex align-items-center gap-1.5">
-                                    <button
-                                      type="button"
-                                      className="btn btn-xs btn-outline-primary fw-semibold rounded-pill py-0.5 px-2.5"
-                                      style={{ fontSize: "11px" }}
-                                      onClick={() => setPreviewFile({ url: fileUrl, name: msg.attachment_name || "Dokumen", size: msg.attachment_size })}
-                                    >
-                                      <i className="bi bi-eye-fill me-1"></i> Preview
-                                    </button>
-                                    <a
-                                      href={fileUrl}
-                                      download
-                                      className="btn btn-xs btn-outline-secondary fw-semibold rounded-pill py-0.5 px-2.5"
-                                      style={{ fontSize: "11px" }}
-                                    >
-                                      <i className="bi bi-download me-1"></i> Download
-                                    </a>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {/* Bottom Right timestamp & flags */}
                           <span
@@ -1217,8 +1304,9 @@ export default function LiveChatClient() {
                           </span>
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
 
                   {/* Typing Indicator Balloon when Visitor is typing */}
                   {!!activeSession?.is_user_typing && (
@@ -1369,46 +1457,341 @@ export default function LiveChatClient() {
                 </div>
               </>
             ) : (
-              <div className="h-100 d-flex flex-column align-items-center justify-content-center text-muted p-4">
-                <i className="bi bi-chat-left-dots text-secondary fs-1 mb-2"></i>
-                <p className="mb-0">Pilih salah satu sesi obrolan di sebelah kiri untuk melihat pesan.</p>
+              <div
+                className="h-100 d-flex flex-column align-items-center justify-content-center text-center p-4"
+                style={{
+                  backgroundImage: `linear-gradient(rgba(248, 250, 252, 0.88), rgba(248, 250, 252, 0.88)), url('${getApiUrl('/images/tech-doodles-bg.png')}')`,
+                  backgroundSize: "cover",
+                  backgroundPosition: "center"
+                }}
+              >
+                <div
+                  className="bg-white p-4 rounded-4 shadow-sm border text-center animate-fade-in"
+                  style={{ maxWidth: "400px" }}
+                >
+                  <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow-xs" style={{ width: "64px", height: "64px" }}>
+                    <i className="bi bi-chat-square-dots-fill fs-2"></i>
+                  </div>
+                  <h5 className="fw-bold text-dark mb-1.5" style={{ letterSpacing: "-0.3px" }}>
+                    Konsultasi Live Chat
+                  </h5>
+                  <p className="small text-muted mb-0" style={{ fontSize: "13.5px", lineHeight: "1.5" }}>
+                    Pilih salah satu sesi obrolan di sebelah kiri untuk mulai membaca atau membalas pesan dari pengunjung.
+                  </p>
+                </div>
               </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* ── File Preview Modal Popup ── */}
+      {/* ── WhatsApp Web Style Media Viewer Modal ── */}
       {previewFile && (
-        <div className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center p-3" style={{ zIndex: 10500 }}>
-          <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: "92%", maxWidth: "700px", maxHeight: "88vh" }}>
-            <div className="p-3 text-white d-flex align-items-center justify-content-between" style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}>
-              <h6 className="mb-0 text-truncate text-white fw-bold" style={{ maxWidth: "80%" }}>
-                <i className="bi bi-file-earmark-text me-2"></i> {previewFile.name}
-              </h6>
-              <button type="button" className="btn-close btn-close-white" onClick={() => setPreviewFile(null)}></button>
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 d-flex flex-column justify-content-between p-0"
+          style={{
+            zIndex: 10600,
+            backgroundColor: "rgba(11, 20, 26, 0.96)",
+            backdropFilter: "blur(6px)"
+          }}
+        >
+          {/* Top Header Bar */}
+          <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-secondary border-opacity-25" style={{ background: "rgba(11, 20, 26, 0.85)" }}>
+            <div className="d-flex align-items-center gap-3 text-white min-w-0">
+              <div className="bg-primary text-white rounded-circle fw-bold d-flex align-items-center justify-content-center flex-shrink-0" style={{ width: "40px", height: "40px", fontSize: "16px" }}>
+                {activeSession?.full_name?.charAt(0)?.toUpperCase() || "U"}
+              </div>
+              <div className="min-w-0">
+                <h6 className="mb-0 text-white fw-bold text-truncate" style={{ fontSize: "15px", letterSpacing: "-0.2px" }}>
+                  {previewFile.name}
+                </h6>
+                <small className="text-white-50 d-block text-truncate" style={{ fontSize: "12px" }}>
+                  {activeSession?.full_name} {previewFile.size ? `• ${formatFileSize(previewFile.size)}` : ''}
+                </small>
+              </div>
             </div>
-            <div className="p-3 bg-light overflow-y-auto d-flex align-items-center justify-content-center" style={{ minHeight: "320px", maxHeight: "calc(88vh - 120px)" }}>
-              {isImageFile(previewFile.url) ? (
-                <img src={previewFile.url} alt={previewFile.name} className="img-fluid rounded shadow-sm" style={{ maxHeight: "460px", objectFit: "contain" }} />
-              ) : previewFile.url.endsWith(".pdf") ? (
-                <iframe src={previewFile.url} title={previewFile.name} width="100%" height="450px" className="border rounded" />
-              ) : (
-                <div className="text-center p-4">
-                  <i className="bi bi-file-earmark-word-fill text-primary display-3 mb-3"></i>
-                  <h6 className="fw-bold">{previewFile.name}</h6>
-                  <p className="text-muted small mb-3">File ini tidak mendukung pratinjau langsung di browser. Silakan unduh file untuk membukanya.</p>
-                  <a href={previewFile.url} download className="btn btn-primary rounded-pill px-4">
-                    <i className="bi bi-download me-1.5"></i> Download File ({formatFileSize(previewFile.size)})
+
+            <div className="d-flex align-items-center gap-2">
+              {!isImageFile(previewFile.url) && (
+                <a
+                  href={previewFile.url}
+                  download
+                  className="btn btn-outline-light btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1.5 opacity-90 hover-opacity-100"
+                  title="Unduh File Dokumen"
+                >
+                  <i className="bi bi-download"></i>
+                  <span className="d-none d-sm-inline">Unduh</span>
+                </a>
+              )}
+              <button
+                type="button"
+                className="btn btn-link text-white p-2 border-0 shadow-none opacity-75 hover-opacity-100"
+                onClick={() => setPreviewFile(null)}
+                title="Tutup Pratinjau"
+              >
+                <i className="bi bi-x-lg fs-4"></i>
+              </button>
+            </div>
+          </div>
+
+          {/* Center Main Preview Area */}
+          <div className="flex-grow-1 d-flex align-items-center justify-content-center p-3 overflow-hidden position-relative">
+            {isImageFile(previewFile.url) ? (
+              <img
+                src={previewFile.url}
+                alt={previewFile.name}
+                className="img-fluid rounded-3 shadow-lg"
+                style={{
+                  maxHeight: "82vh",
+                  maxWidth: "92vw",
+                  objectFit: "contain",
+                  userSelect: "none"
+                }}
+              />
+            ) : previewFile.url?.endsWith(".pdf") || previewFile.name?.toLowerCase().endsWith(".pdf") ? (
+              <div className="w-100 h-100 d-flex align-items-center justify-content-center p-2 p-md-3">
+                <div
+                  className="bg-white rounded-4 shadow-lg overflow-hidden w-100 h-100 d-flex flex-column"
+                  style={{ maxWidth: "1100px", maxHeight: "84vh" }}
+                >
+                  <iframe
+                    src={previewFile.url}
+                    title={previewFile.name}
+                    className="w-100 h-100 border-0"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white p-4 p-md-5 rounded-4 text-center shadow-lg border" style={{ maxWidth: "480px", width: "90%" }}>
+                <div className="bg-primary bg-opacity-10 text-primary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 shadow-xs" style={{ width: "76px", height: "76px" }}>
+                  <i className="bi bi-file-earmark-text-fill display-5"></i>
+                </div>
+                <span className="badge bg-primary-subtle text-primary fw-bold text-uppercase px-3 py-1 rounded-pill mb-2" style={{ fontSize: "11px" }}>
+                  {previewFile.name?.split('.').pop()?.toUpperCase() || "DOKUMEN"}
+                </span>
+                <h5 className="fw-bold text-dark mb-2 text-break" style={{ letterSpacing: "-0.3px" }}>
+                  {previewFile.name}
+                </h5>
+                <p className="text-muted small mb-4" style={{ fontSize: "13px" }}>
+                  Ukuran File: <strong>{formatFileSize(previewFile.size)}</strong>
+                </p>
+
+                <div className="d-flex align-items-center justify-content-center gap-2">
+                  <a
+                    href={previewFile.url}
+                    download
+                    className="btn btn-primary rounded-pill px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs"
+                    style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", border: "none" }}
+                  >
+                    <i className="bi bi-download fs-6"></i>
+                    <span>Unduh File Dokumen</span>
                   </a>
                 </div>
-              )}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Footer Bar */}
+          <div className="px-4 py-2 text-center text-white-50 border-top border-secondary border-opacity-10" style={{ background: "rgba(11, 20, 26, 0.85)" }}>
+            <span style={{ fontSize: "12px" }}>{previewFile.name}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Visitor Info Modal Popup ── */}
+      {showVisitorInfoModal && activeSession && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-75 d-flex align-items-center justify-content-center p-3"
+          style={{ zIndex: 10550, backdropFilter: "blur(4px)" }}
+        >
+          <div className="card border-0 shadow-lg rounded-4 overflow-hidden" style={{ width: "100%", maxWidth: "480px" }}>
+            {/* Modal Header */}
+            <div
+              className="px-4 py-3 text-white d-flex align-items-center justify-content-between"
+              style={{ background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)" }}
+            >
+              <div className="d-flex align-items-center gap-2">
+                <i className="bi bi-person-vcard-fill fs-5 text-white"></i>
+                <h6 className="mb-0 text-white fw-bold" style={{ fontSize: "15px", letterSpacing: "0.2px" }}>
+                  Detail Informasi Pengunjung
+                </h6>
+              </div>
+              <button
+                type="button"
+                className="btn-close btn-close-white"
+                onClick={() => setShowVisitorInfoModal(false)}
+                title="Tutup"
+              ></button>
             </div>
-            <div className="p-2.5 bg-white border-top text-end">
-              <a href={previewFile.url} download className="btn btn-sm btn-primary rounded-pill me-2 px-3">
-                <i className="bi bi-download me-1"></i> Download
-              </a>
-              <button type="button" className="btn btn-sm btn-secondary rounded-pill px-3" onClick={() => setPreviewFile(null)}>Tutup</button>
+
+            {/* Modal Body */}
+            <div className="p-4 bg-white">
+              {/* Visitor Profile Avatar & Status */}
+              <div className="text-center mb-4">
+                <div
+                  className="rounded-circle fw-bold text-white d-flex align-items-center justify-content-center mx-auto mb-2 shadow-sm"
+                  style={{
+                    width: "64px",
+                    height: "64px",
+                    fontSize: "24px",
+                    backgroundColor: getAvatarColor(activeSession.full_name)
+                  }}
+                >
+                  {activeSession.full_name.charAt(0).toUpperCase()}
+                </div>
+                <h5 className="fw-bold text-dark mb-1.5">{activeSession.full_name}</h5>
+                {activeSession.status === 'blocked' ? (
+                  <span className="badge bg-danger text-white rounded-pill px-3 py-1 fw-semibold" style={{ fontSize: "11.5px" }}>
+                    <i className="bi bi-shield-slash-fill me-1"></i> Diblokir
+                  </span>
+                ) : activeSession.status === 'closed' ? (
+                  <span className="badge bg-secondary text-white rounded-pill px-3 py-1 fw-semibold" style={{ fontSize: "11.5px" }}>
+                    <i className="bi bi-x-circle-fill me-1"></i> Sesi Ditutup
+                  </span>
+                ) : (
+                  <span className="badge bg-success text-white rounded-pill px-3 py-1 fw-semibold" style={{ fontSize: "11.5px" }}>
+                    <i className="bi bi-check-circle-fill me-1"></i> Sesi Aktif
+                  </span>
+                )}
+              </div>
+
+              {/* Info Items List */}
+              <div className="d-flex flex-column gap-2.5">
+                {/* IP Address Item */}
+                <div className="p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center gap-3 min-w-0">
+                    <div
+                      className="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                      style={{ width: "40px", height: "40px" }}
+                    >
+                      <i className="bi bi-hdd-network-fill fs-5"></i>
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-muted d-block fw-semibold" style={{ fontSize: "11px", letterSpacing: "0.4px" }}>
+                        ALAMAT IP
+                      </span>
+                      <span className="fw-bold text-dark font-monospace text-truncate d-block" style={{ fontSize: "13.5px" }}>
+                        {activeSession.ip_address || "Tidak Terdeteksi"}
+                      </span>
+                    </div>
+                  </div>
+                  {activeSession.ip_address && (
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-outline-secondary rounded-pill px-2.5 py-1 flex-shrink-0 ms-2"
+                      style={{ fontSize: "11.5px" }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(activeSession.ip_address);
+                        alert("Alamat IP disalin ke clipboard!");
+                      }}
+                    >
+                      <i className="bi bi-copy me-1"></i> Salin
+                    </button>
+                  )}
+                </div>
+
+                {/* Email Item */}
+                <div className="p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center gap-3 min-w-0 me-2">
+                    <div
+                      className="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0"
+                      style={{ width: "40px", height: "40px" }}
+                    >
+                      <i className="bi bi-envelope-fill fs-5"></i>
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-muted d-block fw-semibold" style={{ fontSize: "11px", letterSpacing: "0.4px" }}>
+                        EMAIL
+                      </span>
+                      <a
+                        href={`mailto:${activeSession.email}`}
+                        className="fw-bold text-dark text-decoration-none text-truncate d-block"
+                        style={{ fontSize: "13.5px" }}
+                      >
+                        {activeSession.email || "-"}
+                      </a>
+                    </div>
+                  </div>
+                  {activeSession.email && (
+                    <a
+                      href={`mailto:${activeSession.email}`}
+                      className="btn btn-xs btn-outline-primary rounded-pill px-2.5 py-1 flex-shrink-0 ms-2"
+                      style={{ fontSize: "11.5px" }}
+                    >
+                      <i className="bi bi-send me-1"></i> Email
+                    </a>
+                  )}
+                </div>
+
+                {/* Phone / WA Item */}
+                <div className="p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
+                  <div className="d-flex align-items-center gap-3 min-w-0 me-2">
+                    <div
+                      className="rounded-3 bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center flex-shrink-0"
+                      style={{ width: "40px", height: "40px" }}
+                    >
+                      <i className="bi bi-whatsapp fs-5"></i>
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-muted d-block fw-semibold" style={{ fontSize: "11px", letterSpacing: "0.4px" }}>
+                        NO. TELEPON / WHATSAPP
+                      </span>
+                      <span className="fw-bold text-dark text-truncate d-block" style={{ fontSize: "13.5px" }}>
+                        {activeSession.phone_number || "-"}
+                      </span>
+                    </div>
+                  </div>
+                  {activeSession.phone_number && (
+                    <a
+                      href={formatWaUrl(activeSession.phone_number)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-xs btn-success text-white rounded-pill px-2.5 py-1 flex-shrink-0 ms-2 fw-semibold"
+                      style={{ fontSize: "11.5px" }}
+                    >
+                      <i className="bi bi-whatsapp me-1"></i> WA
+                    </a>
+                  )}
+                </div>
+
+                {/* Session Created At Item */}
+                <div className="p-3 rounded-3 border bg-light d-flex align-items-center gap-3">
+                  <div
+                    className="rounded-3 bg-secondary bg-opacity-10 text-secondary d-flex align-items-center justify-content-center flex-shrink-0"
+                    style={{ width: "40px", height: "40px" }}
+                  >
+                    <i className="bi bi-clock-history fs-5"></i>
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-muted d-block fw-semibold" style={{ fontSize: "11px", letterSpacing: "0.4px" }}>
+                      WAKTU SESI DIMULAI
+                    </span>
+                    <span className="fw-semibold text-dark d-block" style={{ fontSize: "13px" }}>
+                      {activeSession.created_at
+                        ? new Date(activeSession.created_at).toLocaleString("id-ID", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })
+                        : "-"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-4 py-3 bg-light border-top text-end">
+              <button
+                type="button"
+                className="btn btn-sm btn-primary rounded-pill px-4 fw-semibold"
+                onClick={() => setShowVisitorInfoModal(false)}
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>

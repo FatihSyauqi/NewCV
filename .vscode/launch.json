@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Frontend CV (Port 3001)",
+      "name": "Frontend CV (Port 4001)",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "npm",
@@ -15,7 +15,7 @@
       "internalConsoleOptions": "neverOpen"
     },
     {
-      "name": "Frontend Admin (Port 3002)",
+      "name": "Frontend Admin (Port 4002)",
       "type": "node",
       "request": "launch",
       "runtimeExecutable": "npm",
@@ -35,7 +35,7 @@
       "args": [
         "dev",
         "-p",
-        "3001"
+        "4001"
       ],
       "cwd": "${workspaceFolder}/frontend-cv",
       "console": "integratedTerminal"
@@ -48,7 +48,7 @@
       "args": [
         "dev",
         "-p",
-        "3002"
+        "4002"
       ],
       "cwd": "${workspaceFolder}/frontend-admin",
       "console": "integratedTerminal"
@@ -58,8 +58,8 @@
     {
       "name": "🚀 Run Both (CV & Admin)",
       "configurations": [
-        "Frontend CV (Port 3001)",
-        "Frontend Admin (Port 3002)"
+        "Frontend CV (Port 4001)",
+        "Frontend Admin (Port 4002)"
       ],
       "stopAll": true
     },
