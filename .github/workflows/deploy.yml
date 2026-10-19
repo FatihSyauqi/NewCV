@@ -1,0 +1,76 @@
+name: Deploy to Windows 10 Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Windows 10 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            powershell -ExecutionPolicy Bypass -Command "& {
+              $ErrorActionPreference = 'Stop'
+              Write-Host '== 1. Navigating to project directory =='
+              Set-Location 'C:\xampp\htdocs\NewCV'
+
+              Write-Host '== 2. Pulling latest code from main =='
+              git pull origin main
+
+              Write-Host '== 3. Building frontend-admin =='
+              Set-Location 'C:\xampp\htdocs\NewCV\frontend-admin'
+              npm install
+              npm run build
+
+              Write-Host '== 4. Building frontend-cv =='
+              Set-Location 'C:\xampp\htdocs\NewCV\frontend-cv'
+              npm install
+              npm run build
+
+              Write-Host '== 5. Checking PM2 Process List =='
+              Set-Location 'C:\xampp\htdocs\NewCV'
+              $pm2Output = pm2 list | Out-String
+              $adminExists = $pm2Output -match 'frontend-admin'
+              $cvExists = $pm2Output -match 'frontend-cv'
+
+              Write-Host ('frontend-admin in PM2: ' + $adminExists)
+              Write-Host ('frontend-cv in PM2: ' + $cvExists)
+
+              if ($adminExists -and $cvExists) {
+                Write-Host 'Both apps exist in PM2 list. Running pm2 restart all...'
+                pm2 restart all
+              } else {
+                if (-not $adminExists) {
+                  Write-Host 'frontend-admin not in PM2. Starting with ecosystem.config.js...'
+                  Set-Location 'C:\xampp\htdocs\NewCV\frontend-admin'
+                  pm2 start ecosystem.config.js
+                } else {
+                  Write-Host 'frontend-admin exists. Restarting...'
+                  pm2 restart frontend-admin
+                }
+
+                if (-not $cvExists) {
+                  Write-Host 'frontend-cv not in PM2. Starting with ecosystem.config.js...'
+                  Set-Location 'C:\xampp\htdocs\NewCV\frontend-cv'
+                  pm2 start ecosystem.config.js
+                } else {
+                  Write-Host 'frontend-cv exists. Restarting...'
+                  pm2 restart frontend-cv
+                }
+              }
+
+              Set-Location 'C:\xampp\htdocs\NewCV'
+              Write-Host '== 6. Saving PM2 state =='
+              pm2 save
+              Write-Host '== Deployment Successfully Completed! =='
+            }"
