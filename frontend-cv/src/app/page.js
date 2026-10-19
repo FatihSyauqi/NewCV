@@ -609,7 +609,7 @@ export default async function Home() {
           </div>
           <hr className="my-4 border-light-subtle" style={{ opacity: "0.1" }} />
           <div className="d-flex flex-wrap justify-content-between align-items-center text-muted small">
-            <span>&copy; {new Date().getFullYear()} {personalInfo?.name}. All rights reserved. ganteng</span>
+            <span>&copy; {new Date().getFullYear()} {personalInfo?.name}. All rights reserved.</span>
           </div>
         </div>
       </footer>
